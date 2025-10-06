@@ -5,6 +5,15 @@ export default function CalendarDayCellExample() {
     {
       id: "1",
       date: new Date(),
+      description: "Salary",
+      amount: 5000,
+      category: "Income" as const,
+      broker: "Employer",
+      isRecurring: true,
+    },
+    {
+      id: "2",
+      date: new Date(),
       description: "Netflix",
       amount: -15.99,
       category: "Expense" as const,
@@ -12,13 +21,13 @@ export default function CalendarDayCellExample() {
       isRecurring: true,
     },
     {
-      id: "2",
+      id: "3",
       date: new Date(),
-      description: "Salary",
-      amount: 5000,
-      category: "Income" as const,
-      broker: "Employer",
-      isRecurring: true,
+      description: "Grocery Shopping",
+      amount: -120.50,
+      category: "Expense" as const,
+      broker: "Whole Foods",
+      isRecurring: false,
     },
   ];
 

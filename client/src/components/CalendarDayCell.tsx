@@ -1,5 +1,5 @@
 import type { ParsedTransaction } from "@shared/schema";
-import TransactionCard from "./TransactionCard";
+import { formatCurrency } from "@/lib/transactionUtils";
 
 interface CalendarDayCellProps {
   date: Date;
@@ -16,8 +16,20 @@ export default function CalendarDayCell({
   isSelected = false,
   onClick,
 }: CalendarDayCellProps) {
-  const isToday =
-    date.toDateString() === new Date().toDateString();
+  const isToday = date.toDateString() === new Date().toDateString();
+
+  const totalIncome = transactions
+    .filter((t) => t.amount > 0)
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  const totalExpense = Math.abs(
+    transactions
+      .filter((t) => t.amount < 0)
+      .reduce((sum, t) => sum + t.amount, 0)
+  );
+
+  const hasIncome = totalIncome > 0;
+  const hasExpense = totalExpense > 0;
 
   return (
     <div
@@ -44,14 +56,34 @@ export default function CalendarDayCell({
           </span>
         )}
       </div>
+
       <div className="space-y-1.5">
-        {transactions.slice(0, 3).map((transaction) => (
-          <TransactionCard key={transaction.id} transaction={transaction} />
-        ))}
-        {transactions.length > 3 && (
-          <p className="text-[10px] text-muted-foreground text-center py-1" data-testid="text-more-count">
-            +{transactions.length - 3} more
-          </p>
+        {hasIncome && (
+          <div
+            className="p-2 rounded-md bg-primary/10 border border-primary/20"
+            data-testid="card-income-summary"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[10px] font-medium text-primary">Income</span>
+              <span className="text-xs font-semibold text-primary" data-testid="text-income-total">
+                {formatCurrency(totalIncome)}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {hasExpense && (
+          <div
+            className="p-2 rounded-md bg-destructive/10 border border-destructive/20"
+            data-testid="card-expense-summary"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[10px] font-medium text-destructive">Expense</span>
+              <span className="text-xs font-semibold text-destructive" data-testid="text-expense-total">
+                -{formatCurrency(totalExpense)}
+              </span>
+            </div>
+          </div>
         )}
       </div>
     </div>
