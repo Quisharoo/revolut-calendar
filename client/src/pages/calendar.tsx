@@ -4,6 +4,7 @@ import MonthNavigation from "@/components/MonthNavigation";
 import CalendarGrid from "@/components/CalendarGrid";
 import InsightsSidebar from "@/components/InsightsSidebar";
 import FilterPanel, { type FilterState } from "@/components/FilterPanel";
+import DayDetailPanel from "@/components/DayDetailPanel";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Filter } from "lucide-react";
@@ -14,6 +15,8 @@ interface CalendarPageProps {
 
 export default function CalendarPage({ transactions }: CalendarPageProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedDayTransactions, setSelectedDayTransactions] = useState<ParsedTransaction[]>([]);
   const [filters, setFilters] = useState<FilterState>({
     categories: [],
     broker: "",
@@ -36,6 +39,18 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
 
   const handleToday = () => {
     setCurrentDate(new Date());
+  };
+
+  const handleDayClick = (date: Date, dayTransactions: ParsedTransaction[]) => {
+    if (dayTransactions.length > 0) {
+      setSelectedDate(date);
+      setSelectedDayTransactions(dayTransactions);
+    }
+  };
+
+  const handleClosePanel = () => {
+    setSelectedDate(null);
+    setSelectedDayTransactions([]);
   };
 
   const filteredTransactions = useMemo(() => {
@@ -130,6 +145,8 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
             <CalendarGrid
               currentDate={currentDate}
               transactions={filteredTransactions}
+              selectedDate={selectedDate}
+              onDayClick={handleDayClick}
             />
           </div>
 
@@ -142,6 +159,37 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
           </div>
         </div>
       </div>
+
+      {selectedDate && (
+        <>
+          <Sheet open={selectedDate !== null} onOpenChange={(open) => !open && handleClosePanel()}>
+            <SheetContent side="right" className="w-full sm:max-w-md lg:hidden p-0">
+              <DayDetailPanel
+                date={selectedDate}
+                transactions={selectedDayTransactions}
+                onClose={handleClosePanel}
+              />
+            </SheetContent>
+          </Sheet>
+
+          <div
+            className="hidden lg:block fixed top-0 right-0 h-screen w-96 bg-card border-l border-border shadow-xl z-50 animate-in slide-in-from-right duration-300"
+            data-testid="panel-day-detail"
+          >
+            <DayDetailPanel
+              date={selectedDate}
+              transactions={selectedDayTransactions}
+              onClose={handleClosePanel}
+            />
+          </div>
+
+          <div
+            className="hidden lg:block fixed inset-0 bg-background/80 backdrop-blur-sm z-40"
+            onClick={handleClosePanel}
+            data-testid="overlay-backdrop"
+          />
+        </>
+      )}
     </div>
   );
 }

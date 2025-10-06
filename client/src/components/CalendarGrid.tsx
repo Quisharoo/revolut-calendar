@@ -5,6 +5,8 @@ import { getMonthDays, groupTransactionsByDate } from "@/lib/transactionUtils";
 interface CalendarGridProps {
   currentDate: Date;
   transactions: ParsedTransaction[];
+  selectedDate?: Date | null;
+  onDayClick?: (date: Date, transactions: ParsedTransaction[]) => void;
 }
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -12,6 +14,8 @@ const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 export default function CalendarGrid({
   currentDate,
   transactions,
+  selectedDate,
+  onDayClick,
 }: CalendarGridProps) {
   const monthDays = getMonthDays(
     currentDate.getFullYear(),
@@ -37,6 +41,7 @@ export default function CalendarGrid({
           const dateKey = date.toISOString().split("T")[0];
           const dayTransactions = groupedTransactions.get(dateKey) || [];
           const isCurrentMonth = date.getMonth() === currentDate.getMonth();
+          const isSelected = selectedDate?.toDateString() === date.toDateString();
 
           return (
             <CalendarDayCell
@@ -44,6 +49,8 @@ export default function CalendarGrid({
               date={date}
               transactions={dayTransactions}
               isCurrentMonth={isCurrentMonth}
+              isSelected={isSelected}
+              onClick={() => onDayClick?.(date, dayTransactions)}
             />
           );
         })}

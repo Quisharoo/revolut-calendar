@@ -5,21 +5,26 @@ interface CalendarDayCellProps {
   date: Date;
   transactions: ParsedTransaction[];
   isCurrentMonth: boolean;
+  isSelected?: boolean;
+  onClick?: () => void;
 }
 
 export default function CalendarDayCell({
   date,
   transactions,
   isCurrentMonth,
+  isSelected = false,
+  onClick,
 }: CalendarDayCellProps) {
   const isToday =
     date.toDateString() === new Date().toDateString();
 
   return (
     <div
-      className={`min-h-[120px] p-2 border border-border bg-card ${
+      className={`min-h-[120px] p-2 border border-border bg-card cursor-pointer transition-colors hover-elevate ${
         !isCurrentMonth ? "opacity-40" : ""
-      }`}
+      } ${isSelected ? "ring-2 ring-primary ring-inset" : ""}`}
+      onClick={onClick}
       data-testid={`cell-day-${date.getDate()}`}
     >
       <div className="flex items-center justify-between mb-2">
