@@ -23,7 +23,6 @@ export default defineConfig({
     alias: {
       "@": path.resolve(import.meta.dirname, "client", "src"),
       "@shared": path.resolve(import.meta.dirname, "shared"),
-      "@assets": path.resolve(import.meta.dirname, "attached_assets"),
     },
   },
   root: path.resolve(import.meta.dirname, "client"),
@@ -43,7 +42,7 @@ export default defineConfig({
     setupFiles: path.resolve(import.meta.dirname, "vitest.setup.ts"),
     coverage: {
       reporter: ["text", "html"],
-      exclude: ["dist/**", "node_modules/**", "server/**", "attached_assets/**"],
+      exclude: ["dist/**", "node_modules/**", "server/**"],
     },
     css: true,
   },
