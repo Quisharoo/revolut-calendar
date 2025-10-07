@@ -37,4 +37,14 @@ export default defineConfig({
       deny: ["**/.*"],
     },
   },
+  test: {
+    globals: true,
+    environment: "jsdom",
+    setupFiles: path.resolve(import.meta.dirname, "vitest.setup.ts"),
+    coverage: {
+      reporter: ["text", "html"],
+      exclude: ["dist/**", "node_modules/**", "server/**", "attached_assets/**"],
+    },
+    css: true,
+  },
 });

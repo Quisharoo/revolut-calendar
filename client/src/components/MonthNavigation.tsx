@@ -20,11 +20,14 @@ export default function MonthNavigation({
   });
 
   return (
-    <div className="flex items-center justify-between gap-4" data-testid="nav-month">
-      <h2 className="text-2xl font-semibold text-foreground" data-testid="text-month-year">
+    <div className="flex items-center gap-4 w-full" data-testid="nav-month">
+      <h2
+        className="text-2xl font-semibold text-foreground flex-1 min-w-0"
+        data-testid="text-month-year"
+      >
         {monthYear}
       </h2>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-none">
         <Button
           variant="outline"
           size="sm"

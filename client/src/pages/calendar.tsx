@@ -7,6 +7,7 @@ import FilterPanel, { type FilterState } from "@/components/FilterPanel";
 import DayDetailPanel from "@/components/DayDetailPanel";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { Filter } from "lucide-react";
 
 interface CalendarPageProps {
@@ -24,6 +25,7 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
     maxAmount: "",
     searchText: "",
   });
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
 
   const handlePrevMonth = () => {
     setCurrentDate(
@@ -160,20 +162,22 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
         </div>
       </div>
 
-      {selectedDate && (
-        <>
-          <Sheet open={selectedDate !== null} onOpenChange={(open) => !open && handleClosePanel()}>
-            <SheetContent side="right" className="w-full sm:max-w-md lg:hidden p-0">
-              <DayDetailPanel
-                date={selectedDate}
-                transactions={selectedDayTransactions}
-                onClose={handleClosePanel}
-              />
-            </SheetContent>
-          </Sheet>
+      {selectedDate && !isDesktop && (
+        <Sheet open={selectedDate !== null} onOpenChange={(open) => !open && handleClosePanel()}>
+          <SheetContent side="right" className="w-full sm:max-w-md p-0">
+            <DayDetailPanel
+              date={selectedDate}
+              transactions={selectedDayTransactions}
+              onClose={handleClosePanel}
+            />
+          </SheetContent>
+        </Sheet>
+      )}
 
+      {selectedDate && isDesktop && (
+        <>
           <div
-            className="hidden lg:block fixed top-0 right-0 h-screen w-96 bg-card border-l border-border shadow-xl z-50 animate-in slide-in-from-right duration-300"
+            className="fixed top-0 right-0 z-[60] h-screen w-96 bg-white dark:bg-neutral-950 border-l border-border shadow-xl animate-in slide-in-from-right duration-300"
             data-testid="panel-day-detail"
           >
             <DayDetailPanel
@@ -184,7 +188,7 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
           </div>
 
           <div
-            className="hidden lg:block fixed inset-0 bg-background/80 backdrop-blur-sm z-40"
+            className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm"
             onClick={handleClosePanel}
             data-testid="overlay-backdrop"
           />

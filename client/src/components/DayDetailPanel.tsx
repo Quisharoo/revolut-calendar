@@ -20,9 +20,7 @@ export default function DayDetailPanel({
   const expenseTransactions = transactions.filter((t) => t.amount < 0);
 
   const totalIncome = incomeTransactions.reduce((sum, t) => sum + t.amount, 0);
-  const totalExpense = Math.abs(
-    expenseTransactions.reduce((sum, t) => sum + t.amount, 0)
-  );
+  const totalExpense = expenseTransactions.reduce((sum, t) => sum + t.amount, 0);
 
   const formattedDate = date.toLocaleDateString("en-US", {
     weekday: "long",
@@ -32,7 +30,7 @@ export default function DayDetailPanel({
   });
 
   return (
-    <div className="h-full flex flex-col bg-background">
+    <div className="flex h-full flex-col bg-white dark:bg-neutral-950">
       <div className="flex items-center justify-between p-6 border-b border-border">
         <div>
           <h2 className="text-xl font-semibold text-foreground" data-testid="heading-selected-date">
@@ -104,7 +102,7 @@ export default function DayDetailPanel({
                 <h3 className="text-lg font-semibold text-foreground">Expenses</h3>
               </div>
               <span className="text-lg font-bold text-destructive" data-testid="text-expense-total">
-                -{formatCurrency(totalExpense)}
+                {formatCurrency(totalExpense)}
               </span>
             </div>
             <Card className="p-4">

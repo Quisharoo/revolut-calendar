@@ -1,5 +1,7 @@
 import type { ParsedTransaction } from "@shared/schema";
-import { formatCurrency } from "@/lib/transactionUtils";
+import {
+  formatCurrency,
+} from "@/lib/transactionUtils";
 
 interface CalendarDayCellProps {
   date: Date;
@@ -18,28 +20,21 @@ export default function CalendarDayCell({
 }: CalendarDayCellProps) {
   const isToday = date.toDateString() === new Date().toDateString();
 
-  const totalIncome = transactions
-    .filter((t) => t.amount > 0)
-    .reduce((sum, t) => sum + t.amount, 0);
+  const incomeTransactions = transactions.filter((t) => t.amount > 0);
+  const expenseTransactions = transactions.filter((t) => t.amount < 0);
 
-  const totalExpense = Math.abs(
-    transactions
-      .filter((t) => t.amount < 0)
-      .reduce((sum, t) => sum + t.amount, 0)
-  );
-
-  const hasIncome = totalIncome > 0;
-  const hasExpense = totalExpense > 0;
+  const totalIncome = incomeTransactions.reduce((sum, t) => sum + t.amount, 0);
+  const totalExpense = expenseTransactions.reduce((sum, t) => sum + t.amount, 0);
 
   return (
     <div
-      className={`min-h-[120px] p-2 border border-border bg-card cursor-pointer transition-colors hover-elevate ${
+      className={`flex h-full flex-col border border-border bg-card p-2 transition-colors hover-elevate cursor-pointer ${
         !isCurrentMonth ? "opacity-40" : ""
       } ${isSelected ? "ring-2 ring-primary ring-inset" : ""}`}
       onClick={onClick}
       data-testid={`cell-day-${date.getDate()}`}
     >
-      <div className="flex items-center justify-between mb-2">
+      <div className="mb-2 flex items-center justify-between">
         <span
           className={`text-sm font-medium ${
             isToday
@@ -57,34 +52,42 @@ export default function CalendarDayCell({
         )}
       </div>
 
-      <div className="space-y-1.5">
-        {hasIncome && (
-          <div
-            className="p-2 rounded-md bg-primary/10 border border-primary/20"
-            data-testid="card-income-summary"
-          >
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-[10px] font-medium text-primary">Income</span>
-              <span className="text-xs font-semibold text-primary" data-testid="text-income-total">
+      <div className="flex-1 overflow-hidden">
+        <div className="day-scroll flex h-full flex-col gap-1.5 overflow-y-auto pr-1">
+          {totalIncome > 0 && (
+            <div
+              className="group rounded-md border border-border bg-background/70 p-2 shadow-sm transition-shadow duration-150 hover:shadow-md"
+              data-testid="preview-income-summary"
+            >
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-primary" />
+                <p className="text-[11px] font-medium leading-none text-foreground">
+                  Income
+                </p>
+              </div>
+              <p className="text-sm font-semibold leading-none text-primary">
                 {formatCurrency(totalIncome)}
-              </span>
+              </p>
             </div>
-          </div>
-        )}
+          )}
 
-        {hasExpense && (
-          <div
-            className="p-2 rounded-md bg-destructive/10 border border-destructive/20"
-            data-testid="card-expense-summary"
-          >
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-[10px] font-medium text-destructive">Expense</span>
-              <span className="text-xs font-semibold text-destructive" data-testid="text-expense-total">
-                -{formatCurrency(totalExpense)}
-              </span>
+          {totalExpense < 0 && (
+            <div
+              className="group rounded-md border border-border bg-background/70 p-2 shadow-sm transition-shadow duration-150 hover:shadow-md"
+              data-testid="preview-expense-summary"
+            >
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-destructive" />
+                <p className="text-[11px] font-medium leading-none text-foreground">
+                  Expenses
+                </p>
+              </div>
+              <p className="text-sm font-semibold leading-none text-destructive">
+                {formatCurrency(totalExpense)}
+              </p>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

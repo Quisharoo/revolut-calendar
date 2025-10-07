@@ -41,7 +41,11 @@ export const getCategoryDotColor = (category: string): string => {
 
 export const formatCurrency = (amount: number): string => {
   const abs = Math.abs(amount);
-  return amount >= 0 ? `+$${abs.toFixed(2)}` : `-$${abs.toFixed(2)}`;
+  const formatted = abs.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  return amount >= 0 ? `+$${formatted}` : `-$${formatted}`;
 };
 
 export const groupTransactionsByDate = (

@@ -205,6 +205,24 @@
 
 }
 
+.day-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--muted-foreground) / 0.35) transparent;
+}
+
+.day-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+
+.day-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.day-scroll::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--muted-foreground) / 0.35);
+  border-radius: 9999px;
+}
+
 @layer base {
   * {
     @apply border-border;

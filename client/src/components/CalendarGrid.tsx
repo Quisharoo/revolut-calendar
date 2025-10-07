@@ -36,7 +36,7 @@ export default function CalendarGrid({
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-7">
+      <div className="grid grid-cols-7 auto-rows-[minmax(180px,auto)]">
         {monthDays.map((date, index) => {
           const dateKey = date.toISOString().split("T")[0];
           const dayTransactions = groupedTransactions.get(dateKey) || [];

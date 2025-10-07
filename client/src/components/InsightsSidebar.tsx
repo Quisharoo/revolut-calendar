@@ -17,19 +17,15 @@ export default function InsightsSidebar({
     .filter((t) => t.category === "Income")
     .reduce((sum, t) => sum + t.amount, 0);
 
-  const totalExpense = Math.abs(
-    transactions
-      .filter((t) => t.category === "Expense")
-      .reduce((sum, t) => sum + t.amount, 0)
-  );
+  const totalExpense = transactions
+    .filter((t) => t.category === "Expense")
+    .reduce((sum, t) => sum + t.amount, 0);
 
-  const totalTransfer = Math.abs(
-    transactions
-      .filter((t) => t.category === "Transfer")
-      .reduce((sum, t) => sum + t.amount, 0)
-  );
+  const totalTransfer = transactions
+    .filter((t) => t.category === "Transfer")
+    .reduce((sum, t) => sum + t.amount, 0);
 
-  const netTotal = totalIncome - totalExpense - totalTransfer;
+  const netTotal = totalIncome + totalExpense + totalTransfer;
 
   const recurringCount = transactions.filter((t) => t.isRecurring).length;
 
@@ -73,7 +69,7 @@ export default function InsightsSidebar({
                 <span className="text-sm text-muted-foreground">Expenses</span>
               </div>
               <span className="text-sm font-semibold text-destructive" data-testid="text-total-expense">
-                -{formatCurrency(totalExpense)}
+                {formatCurrency(totalExpense)}
               </span>
             </div>
 
@@ -83,7 +79,7 @@ export default function InsightsSidebar({
                 <span className="text-sm text-muted-foreground">Transfers</span>
               </div>
               <span className="text-sm font-semibold text-muted-foreground" data-testid="text-total-transfer">
-                -{formatCurrency(totalTransfer)}
+                {formatCurrency(totalTransfer)}
               </span>
             </div>
           </div>
@@ -116,7 +112,7 @@ export default function InsightsSidebar({
                   <span className="text-sm font-medium text-foreground">{category}</span>
                 </div>
                 <span className="text-sm font-semibold text-foreground" data-testid={`text-category-${category.toLowerCase()}-total`}>
-                  {category === "Income" ? formatCurrency(total) : `-${formatCurrency(total)}`}
+                  {formatCurrency(total)}
                 </span>
               </div>
               <p className="text-xs text-muted-foreground pl-5" data-testid={`text-category-${category.toLowerCase()}-count`}>

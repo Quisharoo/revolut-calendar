@@ -13,12 +13,24 @@ export const transactions = pgTable("transactions", {
   isRecurring: text("is_recurring").default("false"),
 });
 
+export const users = pgTable("users", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  username: text("username").notNull().unique(),
+});
+
 export const insertTransactionSchema = createInsertSchema(transactions).omit({
   id: true,
 });
 
 export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
 export type Transaction = typeof transactions.$inferSelect;
+
+export const insertUserSchema = createInsertSchema(users).omit({
+  id: true,
+});
+
+export type InsertUser = z.infer<typeof insertUserSchema>;
+export type User = typeof users.$inferSelect;
 
 export type TransactionCategory = "Income" | "Expense" | "Transfer";
 
