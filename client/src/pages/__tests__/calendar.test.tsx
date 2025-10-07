@@ -54,7 +54,10 @@ describe("CalendarPage day detail interactions", () => {
 
     render(<CalendarPage transactions={sampleTransactions} />);
 
-    await user.click(screen.getByTestId("button-open-day"));
+    // On desktop, there are two buttons (mobile hidden, desktop visible)
+    // Click the first one which should trigger the handler
+    const buttons = screen.getAllByTestId("button-open-day");
+    await user.click(buttons[0]);
 
     const panel = await screen.findByTestId("panel-day-detail");
     expect(panel).toBeInTheDocument();
@@ -75,7 +78,9 @@ describe("CalendarPage day detail interactions", () => {
 
     render(<CalendarPage transactions={sampleTransactions} />);
 
-    await user.click(screen.getByTestId("button-open-day"));
+    // On mobile, there are still two buttons but we only need to click one
+    const buttons = screen.getAllByTestId("button-open-day");
+    await user.click(buttons[0]);
 
     const dialog = await screen.findByRole("dialog");
     expect(dialog).toBeInTheDocument();

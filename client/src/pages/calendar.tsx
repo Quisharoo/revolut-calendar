@@ -7,6 +7,7 @@ import FilterPanel, { type FilterState } from "@/components/FilterPanel";
 import DayDetailPanel from "@/components/DayDetailPanel";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { Filter } from "lucide-react";
 
@@ -108,7 +109,8 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
     <div className="min-h-screen bg-background">
       <div className="container mx-auto p-4 lg:p-6">
         <div className="flex flex-col lg:flex-row gap-6">
-          <div className="flex-1 space-y-6">
+          {/* Mobile layout - no resizable panels */}
+          <div className="lg:hidden flex-1 space-y-6">
             <div className="flex items-center justify-between gap-4">
               <MonthNavigation
                 currentDate={currentDate}
@@ -121,7 +123,6 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
                   <Button
                     variant="outline"
                     size="icon"
-                    className="lg:hidden"
                     data-testid="button-mobile-filter"
                   >
                     <Filter className="w-4 h-4" />
@@ -152,13 +153,40 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
             />
           </div>
 
-          <div className="hidden lg:block w-80 xl:w-96 space-y-6">
-            <FilterPanel filters={filters} onFiltersChange={setFilters} />
-            <InsightsSidebar
-              transactions={currentMonthTransactions}
-              currentMonth={currentMonthName}
-            />
-          </div>
+          {/* Desktop layout - with resizable panels */}
+          <ResizablePanelGroup
+            direction="horizontal"
+            className="hidden lg:flex flex-1"
+          >
+            <ResizablePanel defaultSize={70} minSize={50}>
+              <div className="h-full pr-3 space-y-6">
+                <MonthNavigation
+                  currentDate={currentDate}
+                  onPrevMonth={handlePrevMonth}
+                  onNextMonth={handleNextMonth}
+                  onToday={handleToday}
+                />
+                <CalendarGrid
+                  currentDate={currentDate}
+                  transactions={filteredTransactions}
+                  selectedDate={selectedDate}
+                  onDayClick={handleDayClick}
+                />
+              </div>
+            </ResizablePanel>
+
+            <ResizableHandle withHandle />
+
+            <ResizablePanel defaultSize={30} minSize={20} maxSize={40}>
+              <div className="h-full pl-3 space-y-6 overflow-y-auto">
+                <FilterPanel filters={filters} onFiltersChange={setFilters} />
+                <InsightsSidebar
+                  transactions={currentMonthTransactions}
+                  currentMonth={currentMonthName}
+                />
+              </div>
+            </ResizablePanel>
+          </ResizablePanelGroup>
         </div>
       </div>
 
