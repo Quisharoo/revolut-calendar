@@ -161,7 +161,7 @@ export default function UploadSection({
           <p className="text-xs text-muted-foreground">
             <strong className="text-foreground">CSV Format:</strong> Your file
             should include columns for date, description, amount, category, and
-            optionally broker. Categories can be: Income, Expense, or Transfer.
+            optionally broker. Categories should be: Income or Expense.
           </p>
           {isProcessing && (
             <p className="text-xs text-muted-foreground mt-3">

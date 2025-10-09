@@ -7,6 +7,20 @@ interface TransactionCardProps {
 }
 
 export default function TransactionCard({ transaction }: TransactionCardProps) {
+  // Display transfers as Income or Expense in the UI based on amount sign
+  // Transfer category still exists in schema but is hidden from users
+  const displayCategory = transaction.category === "Transfer"
+    ? (transaction.amount > 0 ? "Income" : "Expense")
+    : transaction.category;
+  
+  const displayCategoryColor = transaction.category === "Transfer"
+    ? (transaction.amount > 0 ? "text-primary" : "text-destructive")
+    : getCategoryColor(transaction.category);
+  
+  const displayCategoryBgColor = transaction.category === "Transfer"
+    ? (transaction.amount > 0 ? "bg-primary/10" : "bg-destructive/10")
+    : getCategoryBgColor(transaction.category);
+
   return (
     <div
       className="group p-2 bg-card rounded-md border border-card-border hover-elevate transition-all cursor-pointer"
@@ -29,15 +43,15 @@ export default function TransactionCard({ transaction }: TransactionCardProps) {
           )}
         </div>
         <div
-          className={`text-xs font-semibold whitespace-nowrap ${getCategoryColor(transaction.category)}`}
+          className={`text-xs font-semibold whitespace-nowrap ${displayCategoryColor}`}
           data-testid="text-amount"
         >
           {formatCurrency(transaction.amount)}
         </div>
       </div>
-      <div className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-medium mt-1.5 ${getCategoryBgColor(transaction.category)} ${getCategoryColor(transaction.category)}`}
+      <div className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-medium mt-1.5 ${displayCategoryBgColor} ${displayCategoryColor}`}
            data-testid="badge-category">
-        {transaction.category}
+        {displayCategory}
       </div>
     </div>
   );

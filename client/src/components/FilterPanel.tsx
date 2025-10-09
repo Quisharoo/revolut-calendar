@@ -19,7 +19,9 @@ interface FilterPanelProps {
   onFiltersChange: (filters: FilterState) => void;
 }
 
-const CATEGORIES = ["Income", "Expense", "Transfer"];
+// Transfer category exists in schema but is hidden from UI filters
+// Transfers are grouped with Income (positive) or Expense (negative) in the UI
+const CATEGORIES = ["Income", "Expense"];
 
 export default function FilterPanel({
   filters,

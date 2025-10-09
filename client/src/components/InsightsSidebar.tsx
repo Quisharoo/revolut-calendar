@@ -2,7 +2,7 @@ import type { ParsedTransaction } from "@shared/schema";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { getCategoryDotColor, formatCurrency } from "@/lib/transactionUtils";
-import { TrendingUp, TrendingDown, Repeat, ArrowRightLeft } from "lucide-react";
+import { TrendingUp, TrendingDown, Repeat } from "lucide-react";
 
 interface InsightsSidebarProps {
   transactions: ParsedTransaction[];
@@ -13,26 +13,32 @@ export default function InsightsSidebar({
   transactions,
   currentMonth,
 }: InsightsSidebarProps) {
+  // Group transfers with income/expense based on amount sign
+  // Positive amounts (including positive transfers) = Income
+  // Negative amounts (including negative transfers) = Expense
   const totalIncome = transactions
-    .filter((t) => t.category === "Income")
+    .filter((t) => t.category === "Income" || (t.category === "Transfer" && t.amount > 0))
     .reduce((sum, t) => sum + t.amount, 0);
 
   const totalExpense = transactions
-    .filter((t) => t.category === "Expense")
+    .filter((t) => t.category === "Expense" || (t.category === "Transfer" && t.amount < 0))
     .reduce((sum, t) => sum + t.amount, 0);
 
-  const totalTransfer = transactions
-    .filter((t) => t.category === "Transfer")
-    .reduce((sum, t) => sum + t.amount, 0);
-
-  const netTotal = totalIncome + totalExpense + totalTransfer;
+  const netTotal = totalIncome + totalExpense;
 
   const recurringCount = transactions.filter((t) => t.isRecurring).length;
 
   const categoryBreakdown = [
-    { category: "Income", count: transactions.filter((t) => t.category === "Income").length, total: totalIncome },
-    { category: "Expense", count: transactions.filter((t) => t.category === "Expense").length, total: totalExpense },
-    { category: "Transfer", count: transactions.filter((t) => t.category === "Transfer").length, total: totalTransfer },
+    { 
+      category: "Income", 
+      count: transactions.filter((t) => t.category === "Income" || (t.category === "Transfer" && t.amount > 0)).length, 
+      total: totalIncome 
+    },
+    { 
+      category: "Expense", 
+      count: transactions.filter((t) => t.category === "Expense" || (t.category === "Transfer" && t.amount < 0)).length, 
+      total: totalExpense 
+    },
   ];
 
   return (
@@ -70,16 +76,6 @@ export default function InsightsSidebar({
               </div>
               <span className="text-sm font-semibold text-destructive" data-testid="text-total-expense">
                 {formatCurrency(totalExpense)}
-              </span>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <ArrowRightLeft className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Transfers</span>
-              </div>
-              <span className="text-sm font-semibold text-muted-foreground" data-testid="text-total-transfer">
-                {formatCurrency(totalTransfer)}
               </span>
             </div>
           </div>

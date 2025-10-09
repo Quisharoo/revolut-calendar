@@ -33,6 +33,8 @@ export const getCategoryColor = (category: string): string => {
     case "Expense":
       return "text-destructive";
     case "Transfer":
+      // Transfer category exists in schema but is hidden in UI
+      // Components should handle transfer display logic before calling this
       return "text-muted-foreground";
     default:
       return "text-foreground";
@@ -46,6 +48,8 @@ export const getCategoryBgColor = (category: string): string => {
     case "Expense":
       return "bg-destructive/10";
     case "Transfer":
+      // Transfer category exists in schema but is hidden in UI
+      // Components should handle transfer display logic before calling this
       return "bg-muted/50";
     default:
       return "bg-accent";
@@ -59,6 +63,8 @@ export const getCategoryDotColor = (category: string): string => {
     case "Expense":
       return "bg-destructive";
     case "Transfer":
+      // Transfer category exists in schema but is hidden in UI
+      // Components should handle transfer display logic before calling this
       return "bg-muted-foreground";
     default:
       return "bg-foreground";
