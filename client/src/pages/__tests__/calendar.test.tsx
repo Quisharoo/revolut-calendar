@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import CalendarDayCell from "@/components/CalendarDayCell";
@@ -107,8 +107,6 @@ describe("CalendarPage day detail interactions", () => {
 
 describe("CalendarPage filters", () => {
   it("filters to recurring transactions when recurring filter active", async () => {
-    const user = userEvent.setup();
-
     const transactions: ParsedTransaction[] = [
       {
         id: "recurring-expense",
@@ -144,6 +142,8 @@ describe("CalendarPage filters", () => {
 
     render(<CalendarPage transactions={transactions} />);
 
+    const user = userEvent.setup();
+
     await waitFor(() => {
       expect(calendarGridProps).toHaveBeenCalled();
     });
@@ -177,6 +177,72 @@ describe("CalendarPage filters", () => {
           list.every((tx) => tx.isRecurring)
       )
     ).toBe(true);
+  });
+
+  it("filters transactions by the unified search query", async () => {
+    const user = userEvent.setup();
+
+    const transactions: ParsedTransaction[] = [
+      {
+        id: "gym-membership",
+        date: new Date("2024-05-02T12:00:00Z"),
+        description: "Gym Membership",
+        amount: -45,
+        category: "Expense",
+        broker: "Fitness Center",
+        source: { name: "Fitness Center", type: "merchant" },
+        isRecurring: true,
+      },
+      {
+        id: "paycheck",
+        date: new Date("2024-05-05T12:00:00Z"),
+        description: "Paycheck",
+        amount: 2800,
+        category: "Income",
+        broker: "Employer",
+        source: { name: "Employer", type: "broker" },
+        isRecurring: true,
+      },
+      {
+        id: "coffee",
+        date: new Date("2024-05-03T12:00:00Z"),
+        description: "Coffee Run",
+        amount: -6.5,
+        category: "Expense",
+        broker: "Cafe",
+        source: { name: "Cafe", type: "merchant" },
+        isRecurring: false,
+      },
+    ];
+
+    render(<CalendarPage transactions={transactions} />);
+
+    await waitFor(() => {
+      expect(calendarGridProps).toHaveBeenCalled();
+    });
+
+    const searchInputs = screen.getAllByTestId("input-search") as HTMLInputElement[];
+    const searchInput = searchInputs[searchInputs.length - 1];
+
+    fireEvent.change(searchInput, { target: { value: "fitness" } });
+
+    await waitFor(() => {
+      const latestCall = calendarGridProps.mock.calls.at(-1);
+      const latestTransactions = (latestCall?.[0] as { transactions: ParsedTransaction[] }).transactions;
+      expect(searchInput).toHaveValue("fitness");
+      expect(latestTransactions).toHaveLength(1);
+      expect(latestTransactions[0].description).toBe("Gym Membership");
+    });
+
+    fireEvent.change(searchInput, { target: { value: "pay" } });
+
+    await waitFor(() => {
+      const latestCall = calendarGridProps.mock.calls.at(-1);
+      const latestTransactions = (latestCall?.[0] as { transactions: ParsedTransaction[] }).transactions;
+      expect(searchInput).toHaveValue("pay");
+      expect(latestTransactions).toHaveLength(1);
+      expect(latestTransactions[0].description).toBe("Paycheck");
+    });
   });
 });
 

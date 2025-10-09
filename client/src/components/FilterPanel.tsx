@@ -7,7 +7,6 @@ import { getCategoryDotColor } from "@/lib/transactionUtils";
 
 export interface FilterState {
   categories: string[];
-  source: string;
   minAmount: string;
   maxAmount: string;
   searchText: string;
@@ -41,7 +40,6 @@ export default function FilterPanel({
   const clearFilters = () => {
     onFiltersChange({
       categories: [],
-      source: "",
       minAmount: "",
       maxAmount: "",
       searchText: "",
@@ -51,7 +49,6 @@ export default function FilterPanel({
 
   const hasActiveFilters =
     filters.categories.length > 0 ||
-    filters.source ||
     filters.minAmount ||
     filters.maxAmount ||
     filters.searchText ||
@@ -78,13 +75,14 @@ export default function FilterPanel({
 
       <div className="space-y-2">
         <Label htmlFor="search" className="text-sm font-medium">
-          Search
+          Search & Filter
         </Label>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             id="search"
-            placeholder="Search transactions..."
+            type="search"
+            placeholder="Search descriptions, merchants, or brokers..."
             value={filters.searchText}
             onChange={(e) =>
               onFiltersChange({ ...filters, searchText: e.target.value })
@@ -131,21 +129,6 @@ export default function FilterPanel({
             Recurring
           </Badge>
         </div>
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="source" className="text-sm font-medium">
-          Source
-        </Label>
-        <Input
-          id="source"
-          placeholder="Filter by merchant, broker, or counterparty..."
-          value={filters.source}
-          onChange={(e) =>
-            onFiltersChange({ ...filters, source: e.target.value })
-          }
-          data-testid="input-source"
-        />
       </div>
 
       <div className="space-y-2">
