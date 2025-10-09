@@ -12,6 +12,10 @@ const sampleTransactions: ParsedTransaction[] = Array.from({ length: 12 }, (_, i
   amount: index % 2 === 0 ? -(index + 5) : index + 10,
   category: index % 2 === 0 ? "Expense" : "Income",
   broker: index % 2 === 0 ? "Expense Broker" : "Income Broker",
+  source: {
+    name: index % 2 === 0 ? "Expense Broker" : "Income Broker",
+    type: index % 2 === 0 ? "merchant" : "broker",
+  },
   isRecurring: false,
 }));
 
@@ -97,378 +101,156 @@ describe("CalendarPage day detail interactions", () => {
 });
 
 describe("CalendarDayCell summary display", () => {
-  it("shows transaction count when transactions exist", () => {
+  const date = new Date("2024-05-18T12:00:00Z");
+
+  const renderCell = (transactions: ParsedTransaction[], extraProps: Record<string, unknown> = {}) =>
     render(
       <TooltipProvider>
         <CalendarDayCell
-          date={new Date("2024-05-18T12:00:00Z")}
-          transactions={sampleTransactions}
+          date={date}
+          transactions={transactions}
           isCurrentMonth
-          onClick={vi.fn()}
+          {...extraProps}
         />
       </TooltipProvider>
     );
+
+  it("shows transaction count when transactions exist", () => {
+    renderCell(sampleTransactions);
 
     expect(screen.getByTestId("text-transaction-count")).toHaveTextContent(
       String(sampleTransactions.length)
     );
   });
 
-  it("displays income summary card with correct total", () => {
-    const incomeTransactions: ParsedTransaction[] = [
+  it("aggregates transactions by source and shows the net total", () => {
+    const transactions: ParsedTransaction[] = [
       {
         id: "income-1",
-        date: new Date("2024-05-18T12:00:00Z"),
+        date,
         description: "Salary",
         amount: 5000,
         category: "Income",
         broker: "Employer",
+        source: { name: "Employer", type: "broker" },
         isRecurring: false,
       },
       {
         id: "income-2",
-        date: new Date("2024-05-18T12:00:00Z"),
+        date,
         description: "Bonus",
         amount: 1500,
         category: "Income",
         broker: "Employer",
+        source: { name: "Employer", type: "broker" },
         isRecurring: false,
       },
     ];
 
-    render(
-      <TooltipProvider>
-        <CalendarDayCell
-          date={new Date("2024-05-18T12:00:00Z")}
-          transactions={incomeTransactions}
-          isCurrentMonth
-          onClick={vi.fn()}
-        />
-      </TooltipProvider>
-    );
+    renderCell(transactions);
 
-    const incomeCard = screen.getByTestId("preview-income-summary");
-    expect(incomeCard).toBeInTheDocument();
-    expect(incomeCard).toHaveTextContent("Income");
-    expect(incomeCard).toHaveTextContent("$6,500.00");
+    expect(screen.getByTestId("group-net-employer")).toHaveTextContent("$6,500.00");
+    expect(screen.getAllByTestId(/preview-transaction-/)).toHaveLength(2);
   });
 
-  it("displays expense summary card with correct total", () => {
-    const expenseTransactions: ParsedTransaction[] = [
+  it("renders separate groups for different sources", () => {
+    const transactions: ParsedTransaction[] = [
       {
         id: "expense-1",
-        date: new Date("2024-05-18T12:00:00Z"),
+        date,
         description: "Rent",
         amount: -1800,
         category: "Expense",
         broker: "Landlord",
+        source: { name: "Landlord", type: "merchant" },
         isRecurring: true,
       },
       {
         id: "expense-2",
-        date: new Date("2024-05-18T12:00:00Z"),
+        date,
         description: "Groceries",
-        amount: -120.50,
+        amount: -120.5,
         category: "Expense",
         broker: "Whole Foods",
+        source: { name: "Whole Foods", type: "merchant" },
         isRecurring: false,
       },
     ];
 
-    render(
-      <TooltipProvider>
-        <CalendarDayCell
-          date={new Date("2024-05-18T12:00:00Z")}
-          transactions={expenseTransactions}
-          isCurrentMonth
-          onClick={vi.fn()}
-        />
-      </TooltipProvider>
-    );
+    renderCell(transactions);
 
-    const expenseCard = screen.getByTestId("preview-expense-summary");
-    expect(expenseCard).toBeInTheDocument();
-    expect(expenseCard).toHaveTextContent("Expenses");
-    expect(expenseCard).toHaveTextContent("-$1,920.50");
+    expect(screen.getByTestId("group-card-landlord")).toBeInTheDocument();
+    expect(screen.getByTestId("group-card-whole-foods")).toBeInTheDocument();
   });
 
-  it("displays both income and expense cards when both exist", () => {
-    const mixedTransactions: ParsedTransaction[] = [
+  it("shows a recurring badge when recurring transactions are present", () => {
+    const transactions: ParsedTransaction[] = [
       {
-        id: "income-1",
-        date: new Date("2024-05-18T12:00:00Z"),
-        description: "Salary",
-        amount: 5000,
-        category: "Income",
-        broker: "Employer",
-        isRecurring: false,
+        id: "recurring-1",
+        date,
+        description: "Subscription",
+        amount: -25,
+        category: "Expense",
+        broker: "Service",
+        source: { name: "Service", type: "merchant" },
+        isRecurring: true,
       },
       {
-        id: "expense-1",
-        date: new Date("2024-05-18T12:00:00Z"),
-        description: "Rent",
-        amount: -1800,
-        category: "Expense",
-        broker: "Landlord",
+        id: "recurring-2",
+        date,
+        description: "Salary",
+        amount: 2500,
+        category: "Income",
+        broker: "Employer",
+        source: { name: "Employer", type: "broker" },
         isRecurring: true,
       },
     ];
 
-    render(
-      <TooltipProvider>
-        <CalendarDayCell
-          date={new Date("2024-05-18T12:00:00Z")}
-          transactions={mixedTransactions}
-          isCurrentMonth
-          onClick={vi.fn()}
-        />
-      </TooltipProvider>
-    );
+    renderCell(transactions);
 
-    expect(screen.getByTestId("preview-income-summary")).toBeInTheDocument();
-    expect(screen.getByTestId("preview-expense-summary")).toBeInTheDocument();
-    
-    expect(screen.getByTestId("preview-income-summary")).toHaveTextContent("$5,000.00");
-    expect(screen.getByTestId("preview-expense-summary")).toHaveTextContent("-$1,800.00");
+    expect(screen.getByTestId("pill-recurring-count")).toHaveTextContent("2");
   });
 
-  it("does not display income card when no income transactions exist", () => {
-    const expenseTransactions: ParsedTransaction[] = [
-      {
-        id: "expense-1",
-        date: new Date("2024-05-18T12:00:00Z"),
-        description: "Rent",
-        amount: -1800,
-        category: "Expense",
-        broker: "Landlord",
-        isRecurring: true,
-      },
-    ];
+  it("renders a placeholder when no transactions exist", () => {
+    renderCell([]);
 
-    render(
-      <TooltipProvider>
-        <CalendarDayCell
-          date={new Date("2024-05-18T12:00:00Z")}
-          transactions={expenseTransactions}
-          isCurrentMonth
-          onClick={vi.fn()}
-        />
-      </TooltipProvider>
-    );
-
-    expect(screen.queryByTestId("preview-income-summary")).not.toBeInTheDocument();
-    expect(screen.getByTestId("preview-expense-summary")).toBeInTheDocument();
-  });
-
-  it("does not display expense card when no expense transactions exist", () => {
-    const incomeTransactions: ParsedTransaction[] = [
-      {
-        id: "income-1",
-        date: new Date("2024-05-18T12:00:00Z"),
-        description: "Salary",
-        amount: 5000,
-        category: "Income",
-        broker: "Employer",
-        isRecurring: false,
-      },
-    ];
-
-    render(
-      <TooltipProvider>
-        <CalendarDayCell
-          date={new Date("2024-05-18T12:00:00Z")}
-          transactions={incomeTransactions}
-          isCurrentMonth
-          onClick={vi.fn()}
-        />
-      </TooltipProvider>
-    );
-
-    expect(screen.getByTestId("preview-income-summary")).toBeInTheDocument();
-    expect(screen.queryByTestId("preview-expense-summary")).not.toBeInTheDocument();
-  });
-
-  it("does not display any summary cards when no transactions exist", () => {
-    render(
-      <TooltipProvider>
-        <CalendarDayCell
-          date={new Date("2024-05-18T12:00:00Z")}
-          transactions={[]}
-          isCurrentMonth
-          onClick={vi.fn()}
-        />
-      </TooltipProvider>
-    );
-
-    expect(screen.queryByTestId("preview-income-summary")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("preview-expense-summary")).not.toBeInTheDocument();
+    expect(screen.getByTestId("empty-day-placeholder")).toBeInTheDocument();
     expect(screen.queryByTestId("text-transaction-count")).not.toBeInTheDocument();
   });
 
-  it("correctly categorizes transactions by amount sign regardless of category field", () => {
+  it("displays a net total badge for the day", () => {
     const transactions: ParsedTransaction[] = [
       {
-        id: "positive-1",
-        date: new Date("2024-05-18T12:00:00Z"),
-        description: "Income Item",
-        amount: 1000,
-        category: "Expense", // Wrong category but positive amount
-        broker: "Test",
-        isRecurring: false,
-      },
-      {
-        id: "negative-1",
-        date: new Date("2024-05-18T12:00:00Z"),
-        description: "Expense Item",
-        amount: -500,
-        category: "Income", // Wrong category but negative amount
-        broker: "Test",
-        isRecurring: false,
-      },
-    ];
-
-    render(
-      <TooltipProvider>
-        <CalendarDayCell
-          date={new Date("2024-05-18T12:00:00Z")}
-          transactions={transactions}
-          isCurrentMonth
-          onClick={vi.fn()}
-        />
-      </TooltipProvider>
-    );
-
-    // Should be categorized by amount sign, not category field
-    expect(screen.getByTestId("preview-income-summary")).toHaveTextContent("$1,000.00");
-    expect(screen.getByTestId("preview-expense-summary")).toHaveTextContent("-$500.00");
-  });
-
-  it("handles large transaction amounts without overflow", () => {
-    const largeTransactions: ParsedTransaction[] = [
-      {
-        id: "large-income",
-        date: new Date("2024-05-18T12:00:00Z"),
-        description: "Big Payment",
-        amount: 999999.99,
+        id: "income-1",
+        date,
+        description: "Consulting",
+        amount: 3200,
         category: "Income",
         broker: "Client",
+        source: { name: "Client", type: "broker" },
         isRecurring: false,
       },
       {
-        id: "large-expense",
-        date: new Date("2024-05-18T12:00:00Z"),
-        description: "Big Purchase",
-        amount: -888888.88,
+        id: "expense-1",
+        date,
+        description: "Rent",
+        amount: -1400,
         category: "Expense",
-        broker: "Vendor",
+        broker: "Landlord",
+        source: { name: "Landlord", type: "merchant" },
         isRecurring: false,
       },
     ];
 
-    render(
-      <TooltipProvider>
-        <CalendarDayCell
-          date={new Date("2024-05-18T12:00:00Z")}
-          transactions={largeTransactions}
-          isCurrentMonth
-          onClick={vi.fn()}
-        />
-      </TooltipProvider>
-    );
+    renderCell(transactions);
 
-    const incomeCard = screen.getByTestId("preview-income-summary");
-    const expenseCard = screen.getByTestId("preview-expense-summary");
-
-    // Verify amounts are displayed
-    expect(incomeCard).toHaveTextContent("$999,999.99");
-    expect(expenseCard).toHaveTextContent("-$888,888.88");
-
-    // Verify the card structure prevents overflow
-    const incomeAmount = incomeCard.querySelector('p.text-sm');
-    const expenseAmount = expenseCard.querySelector('p.text-sm');
-    
-    expect(incomeAmount).toBeInTheDocument();
-    expect(expenseAmount).toBeInTheDocument();
-  });
-
-  it("handles zero amounts correctly", () => {
-    const zeroTransactions: ParsedTransaction[] = [
-      {
-        id: "zero-1",
-        date: new Date("2024-05-18T12:00:00Z"),
-        description: "Zero amount",
-        amount: 0,
-        category: "Income",
-        broker: "Test",
-        isRecurring: false,
-      },
-    ];
-
-    render(
-      <TooltipProvider>
-        <CalendarDayCell
-          date={new Date("2024-05-18T12:00:00Z")}
-          transactions={zeroTransactions}
-          isCurrentMonth
-          onClick={vi.fn()}
-        />
-      </TooltipProvider>
-    );
-
-    // Zero amounts should not show any cards
-    expect(screen.queryByTestId("preview-income-summary")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("preview-expense-summary")).not.toBeInTheDocument();
-  });
-
-  it("sums multiple transactions of the same type correctly", () => {
-    const multipleIncomes: ParsedTransaction[] = [
-      {
-        id: "income-1",
-        date: new Date("2024-05-18T12:00:00Z"),
-        description: "Payment 1",
-        amount: 100.50,
-        category: "Income",
-        broker: "Client A",
-        isRecurring: false,
-      },
-      {
-        id: "income-2",
-        date: new Date("2024-05-18T12:00:00Z"),
-        description: "Payment 2",
-        amount: 200.25,
-        category: "Income",
-        broker: "Client B",
-        isRecurring: false,
-      },
-      {
-        id: "income-3",
-        date: new Date("2024-05-18T12:00:00Z"),
-        description: "Payment 3",
-        amount: 50.00,
-        category: "Income",
-        broker: "Client C",
-        isRecurring: false,
-      },
-    ];
-
-    render(
-      <TooltipProvider>
-        <CalendarDayCell
-          date={new Date("2024-05-18T12:00:00Z")}
-          transactions={multipleIncomes}
-          isCurrentMonth
-          onClick={vi.fn()}
-        />
-      </TooltipProvider>
-    );
-
-    // Should sum to 350.75
-    expect(screen.getByTestId("preview-income-summary")).toHaveTextContent("$350.75");
+    expect(screen.getByTestId("day-net-total")).toHaveTextContent("$1,800.00");
   });
 });
 
 describe("CalendarDayCell interactions and styling", () => {
-  it("calls onClick handler when cell is clicked", async () => {
+  it("calls onSelect handler when cell is clicked", async () => {
     const user = userEvent.setup();
     const handleClick = vi.fn();
 
@@ -478,7 +260,7 @@ describe("CalendarDayCell interactions and styling", () => {
           date={new Date("2024-05-18T12:00:00Z")}
           transactions={sampleTransactions}
           isCurrentMonth
-          onClick={handleClick}
+          onSelect={handleClick}
         />
       </TooltipProvider>
     );
@@ -494,7 +276,7 @@ describe("CalendarDayCell interactions and styling", () => {
           date={new Date("2024-05-18T12:00:00Z")}
           transactions={[]}
           isCurrentMonth
-          onClick={vi.fn()}
+          onSelect={vi.fn()}
         />
       </TooltipProvider>
     );
@@ -509,7 +291,7 @@ describe("CalendarDayCell interactions and styling", () => {
           date={new Date("2024-05-18T12:00:00Z")}
           transactions={sampleTransactions}
           isCurrentMonth={false}
-          onClick={vi.fn()}
+          onSelect={vi.fn()}
         />
       </TooltipProvider>
     );
@@ -525,7 +307,7 @@ describe("CalendarDayCell interactions and styling", () => {
           date={new Date("2024-05-18T12:00:00Z")}
           transactions={sampleTransactions}
           isCurrentMonth={true}
-          onClick={vi.fn()}
+          onSelect={vi.fn()}
         />
       </TooltipProvider>
     );
@@ -542,7 +324,7 @@ describe("CalendarDayCell interactions and styling", () => {
           transactions={sampleTransactions}
           isCurrentMonth
           isSelected={true}
-          onClick={vi.fn()}
+          onSelect={vi.fn()}
         />
       </TooltipProvider>
     );
@@ -559,7 +341,7 @@ describe("CalendarDayCell interactions and styling", () => {
           transactions={sampleTransactions}
           isCurrentMonth
           isSelected={false}
-          onClick={vi.fn()}
+          onSelect={vi.fn()}
         />
       </TooltipProvider>
     );
@@ -577,7 +359,7 @@ describe("CalendarDayCell interactions and styling", () => {
           date={today}
           transactions={[]}
           isCurrentMonth
-          onClick={vi.fn()}
+          onSelect={vi.fn()}
         />
       </TooltipProvider>
     );
@@ -595,7 +377,7 @@ describe("CalendarDayCell interactions and styling", () => {
           date={notToday}
           transactions={[]}
           isCurrentMonth
-          onClick={vi.fn()}
+          onSelect={vi.fn()}
         />
       </TooltipProvider>
     );

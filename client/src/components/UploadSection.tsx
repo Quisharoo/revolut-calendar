@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Upload, FileText, AlertCircle } from "lucide-react";
@@ -6,19 +6,25 @@ import { Upload, FileText, AlertCircle } from "lucide-react";
 interface UploadSectionProps {
   onFileUpload: (file: File) => void;
   onLoadDemo: () => void;
+  isProcessing?: boolean;
 }
 
 export default function UploadSection({
   onFileUpload,
   onLoadDemo,
+  isProcessing = false,
 }: UploadSectionProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string>("");
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
+    if (isProcessing) {
+      return;
+    }
     setIsDragging(true);
-  }, []);
+  }, [isProcessing]);
 
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -28,6 +34,9 @@ export default function UploadSection({
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
+      if (isProcessing) {
+        return;
+      }
       setIsDragging(false);
       setError("");
 
@@ -40,11 +49,14 @@ export default function UploadSection({
         }
       }
     },
-    [onFileUpload]
+    [onFileUpload, isProcessing]
   );
 
   const handleFileInput = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (isProcessing) {
+        return;
+      }
       setError("");
       const file = e.target.files?.[0];
       if (file) {
@@ -55,7 +67,7 @@ export default function UploadSection({
         }
       }
     },
-    [onFileUpload]
+    [onFileUpload, isProcessing]
   );
 
   return (
@@ -75,7 +87,7 @@ export default function UploadSection({
             isDragging
               ? "border-primary bg-primary/5"
               : "border-border bg-muted/30"
-          }`}
+          } ${isProcessing ? "pointer-events-none opacity-60" : ""}`}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
@@ -99,16 +111,20 @@ export default function UploadSection({
               onChange={handleFileInput}
               className="hidden"
               id="file-upload"
+              ref={inputRef}
               data-testid="input-file"
+              title="Upload CSV file"
+              placeholder="Select a CSV file"
             />
-            <label htmlFor="file-upload">
-              <Button asChild data-testid="button-browse">
-                <span>
-                  <FileText className="w-4 h-4 mr-2" />
-                  Browse Files
-                </span>
-              </Button>
-            </label>
+            <Button
+              type="button"
+              onClick={() => inputRef.current?.click()}
+              disabled={isProcessing}
+              data-testid="button-browse"
+            >
+              <FileText className="w-4 h-4 mr-2" />
+              {isProcessing ? "Processing..." : "Browse Files"}
+            </Button>
           </div>
         </div>
 
@@ -131,6 +147,7 @@ export default function UploadSection({
             size="lg"
             onClick={onLoadDemo}
             className="w-full sm:w-auto"
+            disabled={isProcessing}
             data-testid="button-load-demo"
           >
             Load Demo Data
@@ -146,6 +163,11 @@ export default function UploadSection({
             should include columns for date, description, amount, category, and
             optionally broker. Categories can be: Income, Expense, or Transfer.
           </p>
+          {isProcessing && (
+            <p className="text-xs text-muted-foreground mt-3">
+              Parsing CSV and preparing transactions…
+            </p>
+          )}
         </div>
       </Card>
     </div>

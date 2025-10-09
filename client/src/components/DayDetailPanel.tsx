@@ -2,7 +2,7 @@ import type { ParsedTransaction } from "@shared/schema";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { X, TrendingUp, TrendingDown } from "lucide-react";
+import { X, TrendingUp, TrendingDown, ArrowRightLeft } from "lucide-react";
 import { formatCurrency, getCategoryColor } from "@/lib/transactionUtils";
 
 interface DayDetailPanelProps {
@@ -16,11 +16,13 @@ export default function DayDetailPanel({
   transactions,
   onClose,
 }: DayDetailPanelProps) {
-  const incomeTransactions = transactions.filter((t) => t.amount > 0);
-  const expenseTransactions = transactions.filter((t) => t.amount < 0);
+  const incomeTransactions = transactions.filter((t) => t.category === "Income");
+  const expenseTransactions = transactions.filter((t) => t.category === "Expense");
+  const transferTransactions = transactions.filter((t) => t.category === "Transfer");
 
   const totalIncome = incomeTransactions.reduce((sum, t) => sum + t.amount, 0);
   const totalExpense = expenseTransactions.reduce((sum, t) => sum + t.amount, 0);
+  const totalTransfer = transferTransactions.reduce((sum, t) => sum + t.amount, 0);
 
   const formattedDate = date.toLocaleDateString("en-US", {
     weekday: "long",
@@ -64,27 +66,30 @@ export default function DayDetailPanel({
             </div>
             <Card className="p-4">
               <div className="space-y-3">
-                {incomeTransactions.map((transaction) => (
-                  <div
-                    key={transaction.id}
-                    className="flex items-start justify-between gap-4 pb-3 last:pb-0 border-b border-border last:border-0"
-                    data-testid={`item-income-${transaction.id}`}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">
-                        {transaction.description}
-                      </p>
-                      {transaction.broker && (
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {transaction.broker}
+                {incomeTransactions.map((transaction) => {
+                  const sourceLabel = transaction.source?.name ?? transaction.broker;
+                  return (
+                    <div
+                      key={transaction.id}
+                      className="flex items-start justify-between gap-4 pb-3 last:pb-0 border-b border-border last:border-0"
+                      data-testid={`item-income-${transaction.id}`}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">
+                          {transaction.description}
                         </p>
-                      )}
+                        {sourceLabel && (
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {sourceLabel}
+                          </p>
+                        )}
+                      </div>
+                      <span className={`text-sm font-semibold ${getCategoryColor(transaction.category)} whitespace-nowrap`}>
+                        {formatCurrency(transaction.amount)}
+                      </span>
                     </div>
-                    <span className={`text-sm font-semibold ${getCategoryColor(transaction.category)} whitespace-nowrap`}>
-                      {formatCurrency(transaction.amount)}
-                    </span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </Card>
           </div>
@@ -107,27 +112,78 @@ export default function DayDetailPanel({
             </div>
             <Card className="p-4">
               <div className="space-y-3">
-                {expenseTransactions.map((transaction) => (
-                  <div
-                    key={transaction.id}
-                    className="flex items-start justify-between gap-4 pb-3 last:pb-0 border-b border-border last:border-0"
-                    data-testid={`item-expense-${transaction.id}`}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">
-                        {transaction.description}
-                      </p>
-                      {transaction.broker && (
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {transaction.broker}
+                {expenseTransactions.map((transaction) => {
+                  const sourceLabel = transaction.source?.name ?? transaction.broker;
+                  return (
+                    <div
+                      key={transaction.id}
+                      className="flex items-start justify-between gap-4 pb-3 last:pb-0 border-b border-border last:border-0"
+                      data-testid={`item-expense-${transaction.id}`}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">
+                          {transaction.description}
                         </p>
-                      )}
+                        {sourceLabel && (
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {sourceLabel}
+                          </p>
+                        )}
+                      </div>
+                      <span className={`text-sm font-semibold ${getCategoryColor(transaction.category)} whitespace-nowrap`}>
+                        {formatCurrency(transaction.amount)}
+                      </span>
                     </div>
-                    <span className={`text-sm font-semibold ${getCategoryColor(transaction.category)} whitespace-nowrap`}>
-                      {formatCurrency(transaction.amount)}
-                    </span>
-                  </div>
-                ))}
+                  );
+                })}
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {(incomeTransactions.length > 0 || expenseTransactions.length > 0) &&
+          transferTransactions.length > 0 && <Separator />}
+
+        {transferTransactions.length > 0 && (
+          <div data-testid="section-transfer">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <ArrowRightLeft className="w-5 h-5 text-muted-foreground" />
+                <h3 className="text-lg font-semibold text-foreground">Transfers</h3>
+              </div>
+              <span
+                className="text-lg font-bold text-muted-foreground"
+                data-testid="text-transfer-total"
+              >
+                {formatCurrency(totalTransfer)}
+              </span>
+            </div>
+            <Card className="p-4">
+              <div className="space-y-3">
+                {transferTransactions.map((transaction) => {
+                  const sourceLabel = transaction.source?.name ?? transaction.broker;
+                  return (
+                    <div
+                      key={transaction.id}
+                      className="flex items-start justify-between gap-4 pb-3 last:pb-0 border-b border-border last:border-0"
+                      data-testid={`item-transfer-${transaction.id}`}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">
+                          {transaction.description}
+                        </p>
+                        {sourceLabel && (
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {sourceLabel}
+                          </p>
+                        )}
+                      </div>
+                      <span className={`text-sm font-semibold ${getCategoryColor(transaction.category)} whitespace-nowrap`}>
+                        {formatCurrency(transaction.amount)}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             </Card>
           </div>

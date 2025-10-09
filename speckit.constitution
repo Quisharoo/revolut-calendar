@@ -1,0 +1,33 @@
+Speckit Engineering Constitution
+
+Principles
+1. Code Quality First
+   - Maintain readable, modular, and well-documented codebases.
+   - Prefer clear design patterns and consistent coding standards over ad hoc solutions.
+   - Require peer review for every change touching production paths.
+2. Test with Purpose
+   - Mandate automated tests that validate expected behavior and guard against regressions.
+   - Define coverage expectations per component; investigate gaps before release.
+   - Preserve fast, reliable pipelines; failing or flaky tests block merges until resolved.
+3. User Experience Consistency
+   - Align implementations with established UX patterns, accessibility guidelines, and copy tone.
+   - Validate user flows across supported devices and locales prior to launch.
+   - Favor predictable interactions over novel but inconsistent behavior.
+4. Performance as a Feature
+   - Budget performance metrics (latency, memory, throughput) during planning.
+   - Profile critical paths and remediate bottlenecks before shipping.
+   - Track performance regressions in telemetry; treat degradations as release blockers.
+
+Governance
+1. Decision Framework
+   - Use these principles as the default lens for technical trade-offs and prioritization.
+   - Document architecture and implementation decisions in design records that reference the applicable principle(s).
+   - Escalate deviations to the engineering leads with justification rooted in measurable impact.
+2. Implementation Standards
+   - Embed principle checklists into code review templates and definition-of-done criteria.
+   - Require sign-off from Quality, UX, and Performance representatives for launches that materially affect their domains.
+   - Maintain living playbooks for onboarding, testing, UX, and performance to operationalize these principles.
+3. Continuous Stewardship
+   - Run quarterly principle retrospectives to assess adherence and adjust guidance.
+   - Audit representative projects biannually to verify that decisions reflect the constitution.
+   - Empower every engineer to flag misalignments; unresolved concerns escalate to the Architecture Council.

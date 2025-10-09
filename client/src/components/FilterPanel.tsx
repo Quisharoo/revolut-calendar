@@ -8,7 +8,7 @@ import { getCategoryDotColor } from "@/lib/transactionUtils";
 
 export interface FilterState {
   categories: string[];
-  broker: string;
+  source: string;
   minAmount: string;
   maxAmount: string;
   searchText: string;
@@ -35,7 +35,7 @@ export default function FilterPanel({
   const clearFilters = () => {
     onFiltersChange({
       categories: [],
-      broker: "",
+      source: "",
       minAmount: "",
       maxAmount: "",
       searchText: "",
@@ -44,7 +44,7 @@ export default function FilterPanel({
 
   const hasActiveFilters =
     filters.categories.length > 0 ||
-    filters.broker ||
+    filters.source ||
     filters.minAmount ||
     filters.maxAmount ||
     filters.searchText;
@@ -111,17 +111,17 @@ export default function FilterPanel({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="broker" className="text-sm font-medium">
-          Broker
+        <Label htmlFor="source" className="text-sm font-medium">
+          Source
         </Label>
         <Input
-          id="broker"
-          placeholder="Filter by broker..."
-          value={filters.broker}
+          id="source"
+          placeholder="Filter by merchant, broker, or counterparty..."
+          value={filters.source}
           onChange={(e) =>
-            onFiltersChange({ ...filters, broker: e.target.value })
+            onFiltersChange({ ...filters, source: e.target.value })
           }
-          data-testid="input-broker"
+          data-testid="input-source"
         />
       </div>
 

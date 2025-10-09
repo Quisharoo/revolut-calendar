@@ -21,7 +21,7 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
   const [selectedDayTransactions, setSelectedDayTransactions] = useState<ParsedTransaction[]>([]);
   const [filters, setFilters] = useState<FilterState>({
     categories: [],
-    broker: "",
+    source: "",
     minAmount: "",
     maxAmount: "",
     searchText: "",
@@ -45,10 +45,8 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
   };
 
   const handleDayClick = (date: Date, dayTransactions: ParsedTransaction[]) => {
-    if (dayTransactions.length > 0) {
-      setSelectedDate(date);
-      setSelectedDayTransactions(dayTransactions);
-    }
+    setSelectedDate(dayTransactions.length > 0 ? date : null);
+    setSelectedDayTransactions(dayTransactions);
   };
 
   const handleClosePanel = () => {
@@ -65,11 +63,16 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
         return false;
       }
 
-      if (
-        filters.broker &&
-        !transaction.broker?.toLowerCase().includes(filters.broker.toLowerCase())
-      ) {
-        return false;
+      if (filters.source) {
+        const sourceLabel =
+          transaction.source?.name ?? transaction.broker ?? "";
+        if (
+          !sourceLabel
+            .toLowerCase()
+            .includes(filters.source.toLowerCase())
+        ) {
+          return false;
+        }
       }
 
       const absAmount = Math.abs(transaction.amount);

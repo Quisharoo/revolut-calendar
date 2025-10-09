@@ -1,4 +1,17 @@
-import type { ParsedTransaction } from "@shared/schema";
+import type {
+  ParsedTransaction,
+  TransactionSourceType,
+} from "@shared/schema";
+
+const inferSourceType = (transaction: ParsedTransaction): TransactionSourceType => {
+  if (transaction.category === "Income") {
+    return "broker";
+  }
+  if (transaction.category === "Transfer") {
+    return "account";
+  }
+  return "merchant";
+};
 
 //todo: remove mock functionality
 export const generateDemoData = (): ParsedTransaction[] => {
@@ -605,5 +618,27 @@ export const generateDemoData = (): ParsedTransaction[] => {
     },
   ];
 
-  return transactions;
+  return transactions.map((transaction) => {
+    if (transaction.source) {
+      return transaction;
+    }
+
+    if (transaction.broker) {
+      return {
+        ...transaction,
+        source: {
+          name: transaction.broker,
+          type: inferSourceType(transaction),
+        },
+      };
+    }
+
+    return {
+      ...transaction,
+      source: {
+        name: transaction.description,
+        type: inferSourceType(transaction),
+      },
+    };
+  });
 };

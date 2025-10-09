@@ -1,6 +1,10 @@
 import type { ParsedTransaction } from "@shared/schema";
 import CalendarDayCell from "./CalendarDayCell";
-import { getMonthDays, groupTransactionsByDate } from "@/lib/transactionUtils";
+import {
+  getMonthDays,
+  summarizeTransactionsByDate,
+  type DailySummary,
+} from "@/lib/transactionUtils";
 
 interface CalendarGridProps {
   currentDate: Date;
@@ -21,7 +25,7 @@ export default function CalendarGrid({
     currentDate.getFullYear(),
     currentDate.getMonth()
   );
-  const groupedTransactions = groupTransactionsByDate(transactions);
+  const summariesByDate = summarizeTransactionsByDate(transactions);
 
   return (
     <div className="bg-card rounded-lg border border-card-border overflow-hidden">
@@ -39,7 +43,14 @@ export default function CalendarGrid({
       <div className="grid grid-cols-7 auto-rows-[minmax(180px,auto)]">
         {monthDays.map((date, index) => {
           const dateKey = date.toISOString().split("T")[0];
-          const dayTransactions = groupedTransactions.get(dateKey) || [];
+          const summary: DailySummary = summariesByDate.get(dateKey) || {
+            dateKey,
+            date,
+            totals: { income: 0, expense: 0, transfer: 0, net: 0 },
+            recurringCount: 0,
+            transactions: [],
+            groups: [],
+          };
           const isCurrentMonth = date.getMonth() === currentDate.getMonth();
           const isSelected = selectedDate?.toDateString() === date.toDateString();
 
@@ -47,10 +58,12 @@ export default function CalendarGrid({
             <CalendarDayCell
               key={index}
               date={date}
-              transactions={dayTransactions}
+              summary={summary}
               isCurrentMonth={isCurrentMonth}
               isSelected={isSelected}
-              onClick={() => onDayClick?.(date, dayTransactions)}
+              onSelect={(selectedDate, selectedSummary) =>
+                onDayClick?.(selectedDate, selectedSummary.transactions)
+              }
             />
           );
         })}
