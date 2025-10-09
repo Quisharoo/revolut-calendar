@@ -21,7 +21,6 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
   const [selectedDayTransactions, setSelectedDayTransactions] = useState<ParsedTransaction[]>([]);
   const [filters, setFilters] = useState<FilterState>({
     categories: [],
-    source: "",
     minAmount: "",
     maxAmount: "",
     searchText: "",
@@ -56,24 +55,14 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
   };
 
   const filteredTransactions = useMemo(() => {
+    const searchQuery = filters.searchText.trim().toLowerCase();
     return transactions.filter((transaction) => {
+      const sourceLabel = transaction.source?.name ?? transaction.broker ?? "";
       if (
         filters.categories.length > 0 &&
         !filters.categories.includes(transaction.category)
       ) {
         return false;
-      }
-
-      if (filters.source) {
-        const sourceLabel =
-          transaction.source?.name ?? transaction.broker ?? "";
-        if (
-          !sourceLabel
-            .toLowerCase()
-            .includes(filters.source.toLowerCase())
-        ) {
-          return false;
-        }
       }
 
       const absAmount = Math.abs(transaction.amount);
@@ -84,13 +73,17 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
         return false;
       }
 
-      if (
-        filters.searchText &&
-        !transaction.description
+      if (searchQuery) {
+        const matchesDescription = transaction.description
           .toLowerCase()
-          .includes(filters.searchText.toLowerCase())
-      ) {
-        return false;
+          .includes(searchQuery);
+        const matchesSource = sourceLabel.toLowerCase().includes(searchQuery);
+        const matchesCategory = transaction.category
+          .toLowerCase()
+          .includes(searchQuery);
+        if (!matchesDescription && !matchesSource && !matchesCategory) {
+          return false;
+        }
       }
 
       if (filters.recurringOnly && !transaction.isRecurring) {
