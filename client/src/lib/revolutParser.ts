@@ -4,6 +4,7 @@ import type {
   TransactionSource,
   TransactionSourceType,
 } from "@shared/schema";
+import { DEFAULT_CURRENCY_SYMBOL } from "./transactionUtils";
 
 const NORMALIZE_REGEX = /[^a-z0-9]/g;
 
@@ -308,6 +309,9 @@ export const parseRevolutCsv = (text: string): ParsedTransaction[] => {
       "Amount (USD)",
       "Amount In Account Currency"
     ) ?? findColumnByIncludes(["amount"], ["fee", "balance"]);
+  const currencyIndex =
+    findColumn("Currency", "Currency Code", "Amount Currency", "Account Currency") ??
+    findColumnByIncludes(["currency"]);
 
   if (dateIndex === undefined) {
     throw new Error("Could not find a date column in the provided CSV.");
@@ -343,6 +347,7 @@ export const parseRevolutCsv = (text: string): ParsedTransaction[] => {
     const sourceLabel = firstNonEmpty(getValue(counterpartyIndex), description);
 
     const amountRaw = getValue(amountIndex);
+    const currencyRaw = getValue(currencyIndex);
     const parsedAmount = parseAmount(amountRaw);
     if (Number.isNaN(parsedAmount)) {
       return;
@@ -360,11 +365,14 @@ export const parseRevolutCsv = (text: string): ParsedTransaction[] => {
 
     const source = buildSource(sourceLabel, category, typeValue);
 
+    const currencySymbol = detectCurrencySymbol(currencyRaw, amountRaw);
+
     transactions.push({
       id: createId(),
       date: parsedDate,
       description,
       amount,
+      currencySymbol,
       category,
       broker: source.type === "broker" ? source.name : undefined,
       source,
@@ -378,4 +386,112 @@ export const parseRevolutCsv = (text: string): ParsedTransaction[] => {
 export const loadRevolutCsv = async (file: File): Promise<ParsedTransaction[]> => {
   const text = await file.text();
   return parseRevolutCsv(text);
+};
+const CURRENCY_SYMBOL_BY_CODE: Record<string, string> = {
+  usd: "$",
+  eur: "€",
+  gbp: "£",
+  aud: "A$",
+  cad: "C$",
+  nzd: "NZ$",
+  chf: "CHF",
+  jpy: "¥",
+  cny: "¥",
+  sek: "kr",
+  nok: "kr",
+  dkk: "kr",
+  czk: "Kč",
+  pln: "zł",
+  huf: "Ft",
+  inr: "₹",
+  zar: "R",
+  brl: "R$",
+  hkd: "HK$",
+  sgd: "S$",
+};
+
+const MULTI_CHAR_SYMBOLS = [
+  "A$",
+  "C$",
+  "NZ$",
+  "HK$",
+  "S$",
+  "R$",
+  "kr",
+  "Kč",
+  "zł",
+  "Ft",
+];
+
+const SINGLE_CHAR_SYMBOLS = new Set([
+  "$",
+  "€",
+  "£",
+  "¥",
+  "₹",
+  "₽",
+  "₺",
+  "₿",
+  "₩",
+  "₪",
+  "₫",
+  "₴",
+  "₦",
+  "₵",
+  "₲",
+  "₱",
+  "฿",
+  "₡",
+  "₭",
+  "₨",
+  "₸",
+  "₮",
+  "៛",
+]);
+
+const extractCurrencySymbol = (raw: string): string | undefined => {
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  for (const symbol of MULTI_CHAR_SYMBOLS) {
+    if (trimmed.includes(symbol)) {
+      return symbol;
+    }
+  }
+
+  for (const char of trimmed) {
+    if (SINGLE_CHAR_SYMBOLS.has(char)) {
+      return char;
+    }
+  }
+
+  const alpha = trimmed.replace(/[^a-z]/gi, "");
+  if (alpha.length === 3) {
+    const mapped = CURRENCY_SYMBOL_BY_CODE[alpha.toLowerCase()];
+    if (mapped) {
+      return mapped;
+    }
+  }
+
+  if (trimmed.length <= 4) {
+    return trimmed;
+  }
+
+  return undefined;
+};
+
+const detectCurrencySymbol = (currencyValue: string, amountValue: string): string => {
+  const fromCurrencyColumn = extractCurrencySymbol(currencyValue);
+  if (fromCurrencyColumn) {
+    return fromCurrencyColumn;
+  }
+
+  const fromAmount = extractCurrencySymbol(amountValue);
+  if (fromAmount) {
+    return fromAmount;
+  }
+
+  return DEFAULT_CURRENCY_SYMBOL;
 };

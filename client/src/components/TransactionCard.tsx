@@ -46,7 +46,7 @@ export default function TransactionCard({ transaction }: TransactionCardProps) {
           className={`text-xs font-semibold whitespace-nowrap ${displayCategoryColor}`}
           data-testid="text-amount"
         >
-          {formatCurrency(transaction.amount)}
+          {formatCurrency(transaction.amount, transaction.currencySymbol)}
         </div>
       </div>
       <div className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-medium mt-1.5 ${displayCategoryBgColor} ${displayCategoryColor}`}

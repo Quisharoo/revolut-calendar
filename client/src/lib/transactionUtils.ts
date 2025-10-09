@@ -15,6 +15,7 @@ export interface DailyTransactionGroup {
   source: TransactionSource;
   totals: DailyTotals;
   transactions: ParsedTransaction[];
+  currencySymbol: string;
 }
 
 export interface DailySummary {
@@ -24,7 +25,10 @@ export interface DailySummary {
   recurringCount: number;
   transactions: ParsedTransaction[];
   groups: DailyTransactionGroup[];
+  currencySymbol: string;
 }
+
+export const DEFAULT_CURRENCY_SYMBOL = "$";
 
 export const getCategoryColor = (category: string): string => {
   switch (category) {
@@ -71,13 +75,16 @@ export const getCategoryDotColor = (category: string): string => {
   }
 };
 
-export const formatCurrency = (amount: number): string => {
+export const formatCurrency = (
+  amount: number,
+  currencySymbol: string = DEFAULT_CURRENCY_SYMBOL
+): string => {
   const abs = Math.abs(amount);
   const formatted = abs.toLocaleString('en-US', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
-  return amount >= 0 ? `+$${formatted}` : `-$${formatted}`;
+  return amount >= 0 ? `+${currencySymbol}${formatted}` : `-${currencySymbol}${formatted}`;
 };
 
 export const groupTransactionsByDate = (
@@ -192,21 +199,27 @@ export const summarizeTransactionsByDate = (
         recurringCount: 0,
         transactions: [],
         groups: [],
+        currencySymbol: transaction.currencySymbol ?? DEFAULT_CURRENCY_SYMBOL,
         incomeGroup: {
           source: { name: "Income", type: "unknown" },
           totals: { income: 0, expense: 0, transfer: 0, net: 0 },
           transactions: [],
+          currencySymbol: transaction.currencySymbol ?? DEFAULT_CURRENCY_SYMBOL,
         },
         expenseGroup: {
           source: { name: "Expenses", type: "unknown" },
           totals: { income: 0, expense: 0, transfer: 0, net: 0 },
           transactions: [],
+          currencySymbol: transaction.currencySymbol ?? DEFAULT_CURRENCY_SYMBOL,
         },
       };
       summaries.set(dateKey, summary);
     }
 
     summary.transactions.push(transaction);
+    if (transaction.currencySymbol) {
+      summary.currencySymbol = transaction.currencySymbol;
+    }
     if (transaction.isRecurring) {
       summary.recurringCount += 1;
     }
@@ -223,6 +236,9 @@ export const summarizeTransactionsByDate = (
       } else if (transaction.category === "Transfer") {
         summary.incomeGroup.totals.transfer += transaction.amount;
       }
+      if (transaction.currencySymbol) {
+        summary.incomeGroup.currencySymbol = transaction.currencySymbol;
+      }
     } else if (transaction.amount < 0) {
       summary.expenseGroup.transactions.push(transaction);
       summary.expenseGroup.totals.net += transaction.amount;
@@ -230,6 +246,9 @@ export const summarizeTransactionsByDate = (
         summary.expenseGroup.totals.expense += transaction.amount;
       } else if (transaction.category === "Transfer") {
         summary.expenseGroup.totals.transfer += transaction.amount;
+      }
+      if (transaction.currencySymbol) {
+        summary.expenseGroup.currencySymbol = transaction.currencySymbol;
       }
     }
   });
@@ -262,6 +281,7 @@ export const summarizeTransactionsByDate = (
         recurringCount: value.recurringCount,
         transactions: value.transactions,
         groups: value.groups,
+        currencySymbol: value.currencySymbol ?? DEFAULT_CURRENCY_SYMBOL,
       },
     ])
   );

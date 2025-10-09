@@ -2,6 +2,7 @@ import type {
   ParsedTransaction,
   TransactionSourceType,
 } from "@shared/schema";
+import { DEFAULT_CURRENCY_SYMBOL } from "@/lib/transactionUtils";
 
 const inferSourceType = (transaction: ParsedTransaction): TransactionSourceType => {
   if (transaction.category === "Income") {
@@ -619,25 +620,30 @@ export const generateDemoData = (): ParsedTransaction[] => {
   ];
 
   return transactions.map((transaction) => {
-    if (transaction.source) {
-      return transaction;
+    const base: ParsedTransaction = {
+      ...transaction,
+      currencySymbol: transaction.currencySymbol ?? DEFAULT_CURRENCY_SYMBOL,
+    };
+
+    if (base.source) {
+      return base;
     }
 
-    if (transaction.broker) {
+    if (base.broker) {
       return {
-        ...transaction,
+        ...base,
         source: {
-          name: transaction.broker,
-          type: inferSourceType(transaction),
+          name: base.broker,
+          type: inferSourceType(base),
         },
       };
     }
 
     return {
-      ...transaction,
+      ...base,
       source: {
-        name: transaction.description,
-        type: inferSourceType(transaction),
+        name: base.description,
+        type: inferSourceType(base),
       },
     };
   });

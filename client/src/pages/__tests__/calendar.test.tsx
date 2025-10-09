@@ -123,7 +123,7 @@ describe("CalendarDayCell summary display", () => {
     );
   });
 
-  it("aggregates transactions by source and shows the net total", () => {
+  it("shows net totals without rendering the detailed card", () => {
     const transactions: ParsedTransaction[] = [
       {
         id: "income-1",
@@ -149,11 +149,12 @@ describe("CalendarDayCell summary display", () => {
 
     renderCell(transactions);
 
-    expect(screen.getByTestId("group-net-employer")).toHaveTextContent("$6,500.00");
-    expect(screen.getAllByTestId(/preview-transaction-/)).toHaveLength(2);
+    expect(screen.getByTestId("day-net-total")).toHaveTextContent("+$6,500.00");
+    expect(screen.getByTestId("text-transaction-count")).toHaveTextContent("2");
+    expect(screen.queryByTestId("group-card-income")).not.toBeInTheDocument();
   });
 
-  it("renders separate groups for different sources", () => {
+  it("keeps the layout compact for expense-heavy days", () => {
     const transactions: ParsedTransaction[] = [
       {
         id: "expense-1",
@@ -179,8 +180,29 @@ describe("CalendarDayCell summary display", () => {
 
     renderCell(transactions);
 
-    expect(screen.getByTestId("group-card-landlord")).toBeInTheDocument();
-    expect(screen.getByTestId("group-card-whole-foods")).toBeInTheDocument();
+    expect(screen.getByTestId("day-net-total")).toHaveTextContent("-$1,920.50");
+    expect(screen.getByTestId("text-transaction-count")).toHaveTextContent("2");
+    expect(screen.queryByTestId("group-card-expenses")).not.toBeInTheDocument();
+  });
+
+  it("displays the currency symbol from the transaction data", () => {
+    const transactions: ParsedTransaction[] = [
+      {
+        id: "income-eur",
+        date,
+        description: "Consulting",
+        amount: 3200,
+        category: "Income",
+        broker: "EU Client",
+        source: { name: "EU Client", type: "broker" },
+        isRecurring: false,
+        currencySymbol: "€",
+      },
+    ];
+
+    renderCell(transactions);
+
+    expect(screen.getByTestId("day-net-total")).toHaveTextContent("+€3,200.00");
   });
 
   it("shows a recurring badge when recurring transactions are present", () => {

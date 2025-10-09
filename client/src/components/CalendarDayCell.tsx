@@ -4,9 +4,9 @@ import {
   formatCurrency,
   summarizeTransactionsByDate,
   type DailySummary,
-  type DailyTransactionGroup,
+  DEFAULT_CURRENCY_SYMBOL,
 } from "@/lib/transactionUtils";
-import { RepeatIcon } from "lucide-react";
+import { RepeatIcon, TrendingUp, TrendingDown } from "lucide-react";
 
 interface CalendarDayCellProps {
   date: Date;
@@ -23,44 +23,9 @@ const netColorClass = (value: number) => {
   return "text-muted-foreground";
 };
 
-const AggregateCard = ({ group }: { group: DailyTransactionGroup }) => {
-  const { source, totals, transactions } = group;
-  const isIncome = source.name === "Income";
-  const slug = source.name.toLowerCase();
-
-  return (
-    <div
-      className={`rounded-md border ${
-        isIncome ? "border-primary/20 bg-primary/5" : "border-destructive/20 bg-destructive/5"
-      } p-2.5 shadow-sm`}
-      data-testid={`group-card-${slug}`}
-    >
-      <div className="mb-1.5 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5">
-          <span className={`h-2 w-2 rounded-full ${isIncome ? "bg-primary" : "bg-destructive"}`} />
-          <p className={`text-xs font-semibold ${isIncome ? "text-primary" : "text-destructive"}`}>
-            {source.name}
-          </p>
-          <span
-            className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
-              isIncome ? "bg-primary/10 text-primary/80" : "bg-destructive/10 text-destructive/80"
-            }`}
-            data-testid={`${slug}-transaction-count`}
-          >
-            {transactions.length}
-          </span>
-        </div>
-        <span
-          className={`text-sm font-bold tabular-nums ${isIncome ? "text-primary" : "text-destructive"}`}
-          data-testid={`group-net-${slug}`}
-        >
-          {formatCurrency(totals.net)}
-        </span>
-      </div>
-    </div>
-  );
-};
-
+/**
+ * CalendarDayCell renders a compact day summary and forwards full detail to the sidebar view.
+ */
 export default function CalendarDayCell({
   date,
   summary,
@@ -84,6 +49,7 @@ export default function CalendarDayCell({
         recurringCount: 0,
         transactions: [],
         groups: [],
+        currencySymbol: DEFAULT_CURRENCY_SYMBOL,
       };
     }
 
@@ -94,6 +60,7 @@ export default function CalendarDayCell({
     }
 
     const recurringCount = baseTransactions.filter((t) => t.isRecurring).length;
+    const currencySymbol = baseTransactions[0]?.currencySymbol ?? DEFAULT_CURRENCY_SYMBOL;
 
     return {
       dateKey: fallbackKey,
@@ -102,18 +69,20 @@ export default function CalendarDayCell({
       recurringCount,
       transactions: baseTransactions,
       groups: [],
+      currencySymbol,
     };
   }, [summary, transactions, date]);
 
   const isToday = date.toDateString() === new Date().toDateString();
   const transactionCount = resolvedSummary.transactions.length;
   const netClass = netColorClass(resolvedSummary.totals.net);
-
+  const incomeCount = resolvedSummary.transactions.filter((t) => t.amount > 0).length;
+  const expenseCount = resolvedSummary.transactions.filter((t) => t.amount < 0).length;
   return (
     <div
       role="button"
       tabIndex={0}
-      className={`flex h-full flex-col border border-border bg-card p-2 transition-colors hover-elevate cursor-pointer ${
+      className={`flex h-full flex-col border border-border bg-card transition-colors hover-elevate cursor-pointer ${
         !isCurrentMonth ? "opacity-40" : ""
       } ${isSelected ? "ring-2 ring-primary ring-inset" : ""}`}
       onClick={() => onSelect?.(date, resolvedSummary)}
@@ -125,8 +94,8 @@ export default function CalendarDayCell({
       }}
       data-testid={`cell-day-${date.getDate()}`}
     >
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5">
+      <div className="flex items-start justify-between gap-2 p-3 pb-1">
+        <div className="flex items-center gap-1.5 flex-wrap">
           <span
             className={`text-sm font-medium ${
               isToday
@@ -147,43 +116,49 @@ export default function CalendarDayCell({
             </span>
           )}
         </div>
-        <div className="flex items-center gap-1">
-          {transactionCount > 0 && (
-            <span
-              className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
-              data-testid="text-transaction-count"
-            >
-              {transactionCount}
-            </span>
-          )}
-          {resolvedSummary.totals.net !== 0 && (
-            <span
-              className={`text-[11px] font-semibold ${netClass}`}
-              data-testid="day-net-total"
-            >
-              {formatCurrency(resolvedSummary.totals.net)}
-            </span>
-          )}
-        </div>
+        {transactionCount > 0 && (
+          <span
+            className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
+            data-testid="text-transaction-count"
+          >
+            {transactionCount}
+          </span>
+        )}
       </div>
 
-      <div className="flex-1 overflow-hidden">
-        <div className="day-scroll flex h-full flex-col gap-1.5 overflow-y-auto pr-1">
-          {resolvedSummary.groups.map((group, index) => (
-            <AggregateCard
-              key={`${resolvedSummary.dateKey}-${group.source.name}-${index}`}
-              group={group}
-            />
-          ))}
-          {resolvedSummary.groups.length === 0 && (
-            <div
-              className="flex h-full items-center justify-center rounded-md border border-dashed border-border/60 text-[11px] text-muted-foreground"
-              data-testid="empty-day-placeholder"
-            >
-              No transactions
+      <div className="flex flex-1 flex-col px-3 pb-3">
+        {transactionCount > 0 ? (
+          <>
+            <div className="mt-1 flex flex-col gap-2">
+              <div className="flex w-full flex-wrap items-baseline gap-x-2 gap-y-1">
+                <span
+                  className={`text-lg font-semibold tabular-nums tracking-tight ${netClass}`}
+                  data-testid="day-net-total"
+                >
+                  {formatCurrency(resolvedSummary.totals.net, resolvedSummary.currencySymbol)}
+                </span>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-1.5 rounded-full bg-primary/10 px-2 py-0.5">
+                  <TrendingUp className="h-3 w-3 text-primary" />
+                  <span className="text-xs font-medium text-primary">{incomeCount}</span>
+                </div>
+                <div className="flex items-center gap-1.5 rounded-full bg-destructive/10 px-2 py-0.5">
+                  <TrendingDown className="h-3 w-3 text-destructive" />
+                  <span className="text-xs font-medium text-destructive">{expenseCount}</span>
+                </div>
+              </div>
             </div>
-          )}
-        </div>
+          </>
+        ) : (
+          <div
+            className="mt-6 flex flex-1 items-center justify-center rounded-md border border-dashed border-border/60 px-3 py-4 text-[11px] text-muted-foreground"
+            data-testid="empty-day-placeholder"
+          >
+            No transactions
+          </div>
+        )}
       </div>
     </div>
   );

@@ -4,6 +4,7 @@ import {
   getMonthDays,
   summarizeTransactionsByDate,
   type DailySummary,
+  DEFAULT_CURRENCY_SYMBOL,
 } from "@/lib/transactionUtils";
 
 interface CalendarGridProps {
@@ -50,6 +51,7 @@ export default function CalendarGrid({
             recurringCount: 0,
             transactions: [],
             groups: [],
+            currencySymbol: DEFAULT_CURRENCY_SYMBOL,
           };
           const isCurrentMonth = date.getMonth() === currentDate.getMonth();
           const isSelected = selectedDate?.toDateString() === date.toDateString();

@@ -3,7 +3,11 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { X, TrendingUp, TrendingDown } from "lucide-react";
-import { formatCurrency, getCategoryColor } from "@/lib/transactionUtils";
+import {
+  formatCurrency,
+  getCategoryColor,
+  DEFAULT_CURRENCY_SYMBOL,
+} from "@/lib/transactionUtils";
 
 interface DayDetailPanelProps {
   date: Date;
@@ -26,6 +30,7 @@ export default function DayDetailPanel({
 
   const totalIncome = incomeTransactions.reduce((sum, t) => sum + t.amount, 0);
   const totalExpense = expenseTransactions.reduce((sum, t) => sum + t.amount, 0);
+  const currencySymbol = transactions[0]?.currencySymbol ?? DEFAULT_CURRENCY_SYMBOL;
 
   const formattedDate = date.toLocaleDateString("en-US", {
     weekday: "long",
@@ -64,7 +69,7 @@ export default function DayDetailPanel({
                 <h3 className="text-lg font-semibold text-foreground">Income</h3>
               </div>
               <span className="text-lg font-bold text-primary" data-testid="text-income-total">
-                {formatCurrency(totalIncome)}
+                {formatCurrency(totalIncome, currencySymbol)}
               </span>
             </div>
             <Card className="p-4">
@@ -88,7 +93,7 @@ export default function DayDetailPanel({
                         )}
                       </div>
                       <span className={`text-sm font-semibold ${getCategoryColor(transaction.category)} whitespace-nowrap`}>
-                        {formatCurrency(transaction.amount)}
+                        {formatCurrency(transaction.amount, transaction.currencySymbol ?? currencySymbol)}
                       </span>
                     </div>
                   );
@@ -110,7 +115,7 @@ export default function DayDetailPanel({
                 <h3 className="text-lg font-semibold text-foreground">Expenses</h3>
               </div>
               <span className="text-lg font-bold text-destructive" data-testid="text-expense-total">
-                {formatCurrency(totalExpense)}
+                {formatCurrency(totalExpense, currencySymbol)}
               </span>
             </div>
             <Card className="p-4">
@@ -134,7 +139,7 @@ export default function DayDetailPanel({
                         )}
                       </div>
                       <span className={`text-sm font-semibold ${getCategoryColor(transaction.category)} whitespace-nowrap`}>
-                        {formatCurrency(transaction.amount)}
+                        {formatCurrency(transaction.amount, transaction.currencySymbol ?? currencySymbol)}
                       </span>
                     </div>
                   );

@@ -1,7 +1,11 @@
 import type { ParsedTransaction } from "@shared/schema";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { getCategoryDotColor, formatCurrency } from "@/lib/transactionUtils";
+import {
+  getCategoryDotColor,
+  formatCurrency,
+  DEFAULT_CURRENCY_SYMBOL,
+} from "@/lib/transactionUtils";
 import { TrendingUp, TrendingDown, Repeat } from "lucide-react";
 
 interface InsightsSidebarProps {
@@ -28,6 +32,8 @@ export default function InsightsSidebar({
 
   const recurringCount = transactions.filter((t) => t.isRecurring).length;
 
+  const currencySymbol = transactions[0]?.currencySymbol ?? DEFAULT_CURRENCY_SYMBOL;
+
   const categoryBreakdown = [
     { 
       category: "Income", 
@@ -52,7 +58,7 @@ export default function InsightsSidebar({
           <div>
             <p className="text-sm text-muted-foreground mb-1">Net Total</p>
             <p className={`text-3xl font-bold ${netTotal >= 0 ? "text-primary" : "text-destructive"}`} data-testid="text-net-total">
-              {formatCurrency(netTotal)}
+              {formatCurrency(netTotal, currencySymbol)}
             </p>
           </div>
 
@@ -65,7 +71,7 @@ export default function InsightsSidebar({
                 <span className="text-sm text-muted-foreground">Income</span>
               </div>
               <span className="text-sm font-semibold text-primary" data-testid="text-total-income">
-                {formatCurrency(totalIncome)}
+                {formatCurrency(totalIncome, currencySymbol)}
               </span>
             </div>
 
@@ -75,7 +81,7 @@ export default function InsightsSidebar({
                 <span className="text-sm text-muted-foreground">Expenses</span>
               </div>
               <span className="text-sm font-semibold text-destructive" data-testid="text-total-expense">
-                {formatCurrency(totalExpense)}
+                {formatCurrency(totalExpense, currencySymbol)}
               </span>
             </div>
           </div>
@@ -108,7 +114,7 @@ export default function InsightsSidebar({
                   <span className="text-sm font-medium text-foreground">{category}</span>
                 </div>
                 <span className="text-sm font-semibold text-foreground" data-testid={`text-category-${category.toLowerCase()}-total`}>
-                  {formatCurrency(total)}
+                  {formatCurrency(total, currencySymbol)}
                 </span>
               </div>
               <p className="text-xs text-muted-foreground pl-5" data-testid={`text-category-${category.toLowerCase()}-count`}>

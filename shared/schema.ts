@@ -18,6 +18,7 @@ export interface ParsedTransaction {
   date: Date;
   description: string;
   amount: number;
+  currencySymbol?: string;
   category: TransactionCategory;
   /**
    * Legacy field kept for compatibility with earlier mock data and filters.
