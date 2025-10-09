@@ -5,3 +5,13 @@ server/public
 vite.config.ts.*
 *.tar.gz
 .env
+
+# IDE and editor config folders
+.codex/
+.cursor/
+.config/
+.local/
+
+# Keep these active config folders:
+# .github/ - CI/CD workflows
+# .vscode/ - Editor settings
