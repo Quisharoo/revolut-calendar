@@ -3,6 +3,7 @@ import CalendarDayCell from "./CalendarDayCell";
 import {
   getMonthDays,
   summarizeTransactionsByDate,
+  getLocalDateKey,
   type DailySummary,
   DEFAULT_CURRENCY_SYMBOL,
 } from "@/lib/transactionUtils";
@@ -43,7 +44,7 @@ export default function CalendarGrid({
       </div>
       <div className="grid grid-cols-7 auto-rows-[minmax(180px,auto)]">
         {monthDays.map((date, index) => {
-          const dateKey = date.toISOString().split("T")[0];
+          const dateKey = getLocalDateKey(date);
           const summary: DailySummary = summariesByDate.get(dateKey) || {
             dateKey,
             date,

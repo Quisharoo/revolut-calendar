@@ -1,9 +1,8 @@
-import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Search, X } from "lucide-react";
+import { RepeatIcon, Search, X } from "lucide-react";
 import { getCategoryDotColor } from "@/lib/transactionUtils";
 
 export interface FilterState {
@@ -12,6 +11,7 @@ export interface FilterState {
   minAmount: string;
   maxAmount: string;
   searchText: string;
+  recurringOnly: boolean;
 }
 
 interface FilterPanelProps {
@@ -34,6 +34,10 @@ export default function FilterPanel({
     onFiltersChange({ ...filters, categories: newCategories });
   };
 
+  const toggleRecurringOnly = () => {
+    onFiltersChange({ ...filters, recurringOnly: !filters.recurringOnly });
+  };
+
   const clearFilters = () => {
     onFiltersChange({
       categories: [],
@@ -41,6 +45,7 @@ export default function FilterPanel({
       minAmount: "",
       maxAmount: "",
       searchText: "",
+      recurringOnly: false,
     });
   };
 
@@ -49,7 +54,8 @@ export default function FilterPanel({
     filters.source ||
     filters.minAmount ||
     filters.maxAmount ||
-    filters.searchText;
+    filters.searchText ||
+    filters.recurringOnly;
 
   return (
     <div className="space-y-6">
@@ -109,6 +115,21 @@ export default function FilterPanel({
               </Badge>
             );
           })}
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <Label className="text-sm font-medium">Recurring</Label>
+        <div>
+          <Badge
+            variant={filters.recurringOnly ? "default" : "outline"}
+            className="cursor-pointer hover-elevate active-elevate-2 inline-flex items-center gap-1"
+            onClick={toggleRecurringOnly}
+            data-testid="badge-filter-recurring"
+          >
+            <RepeatIcon className="w-3 h-3" />
+            Recurring
+          </Badge>
         </div>
       </div>
 

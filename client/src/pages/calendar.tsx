@@ -25,6 +25,7 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
     minAmount: "",
     maxAmount: "",
     searchText: "",
+    recurringOnly: false,
   });
   const isDesktop = useMediaQuery("(min-width: 1024px)");
 
@@ -89,6 +90,10 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
           .toLowerCase()
           .includes(filters.searchText.toLowerCase())
       ) {
+        return false;
+      }
+
+      if (filters.recurringOnly && !transaction.isRecurring) {
         return false;
       }
 

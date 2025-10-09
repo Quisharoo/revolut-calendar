@@ -17,15 +17,14 @@ export default function InsightsSidebar({
   transactions,
   currentMonth,
 }: InsightsSidebarProps) {
-  // Group transfers with income/expense based on amount sign
-  // Positive amounts (including positive transfers) = Income
-  // Negative amounts (including negative transfers) = Expense
+  // Calculate totals based on amount sign (positive = income, negative = expense)
+  // This approach works regardless of category and handles transfers correctly
   const totalIncome = transactions
-    .filter((t) => t.category === "Income" || (t.category === "Transfer" && t.amount > 0))
+    .filter((t) => t.amount > 0)
     .reduce((sum, t) => sum + t.amount, 0);
 
   const totalExpense = transactions
-    .filter((t) => t.category === "Expense" || (t.category === "Transfer" && t.amount < 0))
+    .filter((t) => t.amount < 0)
     .reduce((sum, t) => sum + t.amount, 0);
 
   const netTotal = totalIncome + totalExpense;
@@ -34,15 +33,16 @@ export default function InsightsSidebar({
 
   const currencySymbol = transactions[0]?.currencySymbol ?? DEFAULT_CURRENCY_SYMBOL;
 
+  // For display purposes, show Income/Expense labels (Transfer category is internal)
   const categoryBreakdown = [
     { 
       category: "Income", 
-      count: transactions.filter((t) => t.category === "Income" || (t.category === "Transfer" && t.amount > 0)).length, 
+      count: transactions.filter((t) => t.amount > 0).length, 
       total: totalIncome 
     },
     { 
       category: "Expense", 
-      count: transactions.filter((t) => t.category === "Expense" || (t.category === "Transfer" && t.amount < 0)).length, 
+      count: transactions.filter((t) => t.amount < 0).length, 
       total: totalExpense 
     },
   ];
