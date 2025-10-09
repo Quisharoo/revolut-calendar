@@ -126,7 +126,10 @@ export const getLocalDateKey = (date: Date): string => {
   return `${year}-${month}-${day}`;
 };
 
-const applyAmountToTotals = (totals: DailyTotals, transaction: ParsedTransaction) => {
+const applyAmountToTotals = (
+  totals: DailyTotals,
+  transaction: ParsedTransaction
+) => {
   if (transaction.category === "Income") {
     totals.income += transaction.amount;
   } else if (transaction.category === "Expense") {
@@ -134,7 +137,7 @@ const applyAmountToTotals = (totals: DailyTotals, transaction: ParsedTransaction
   } else {
     totals.transfer += transaction.amount;
   }
-  totals.net = totals.income + totals.expense + totals.transfer;
+  totals.net = totals.income + totals.expense;
 };
 
 const totalsMagnitude = (totals: DailyTotals) =>
@@ -240,14 +243,16 @@ export const summarizeTransactionsByDate = (
     applyAmountToTotals(summary.totals, transaction);
 
     // Group by income (positive amounts) vs expenses (negative amounts)
-    // Transfers are included based on their sign
+    // Transfers remain available in summary.transactions but are kept out of groups
+    if (transaction.category === "Transfer") {
+      return;
+    }
+
     if (transaction.amount > 0) {
       summary.incomeGroup.transactions.push(transaction);
       summary.incomeGroup.totals.net += transaction.amount;
       if (transaction.category === "Income") {
         summary.incomeGroup.totals.income += transaction.amount;
-      } else if (transaction.category === "Transfer") {
-        summary.incomeGroup.totals.transfer += transaction.amount;
       }
       if (transaction.currencySymbol) {
         summary.incomeGroup.currencySymbol = transaction.currencySymbol;
@@ -257,8 +262,6 @@ export const summarizeTransactionsByDate = (
       summary.expenseGroup.totals.net += transaction.amount;
       if (transaction.category === "Expense") {
         summary.expenseGroup.totals.expense += transaction.amount;
-      } else if (transaction.category === "Transfer") {
-        summary.expenseGroup.totals.transfer += transaction.amount;
       }
       if (transaction.currencySymbol) {
         summary.expenseGroup.currencySymbol = transaction.currencySymbol;

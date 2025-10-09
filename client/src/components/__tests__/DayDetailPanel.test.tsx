@@ -33,7 +33,7 @@ describe("DayDetailPanel", () => {
     expect(screen.getByTestId("text-expense-total")).toHaveTextContent("-$500.00");
   });
 
-  it("includes positive transfers in income section", () => {
+  it("lists positive transfers separately from income", () => {
     const transactions: ParsedTransaction[] = [
       createTransaction({ id: "1", amount: 1000, category: "Income", description: "Salary" }),
       createTransaction({ id: "2", amount: 500, category: "Transfer", description: "Account Transfer In" }),
@@ -43,14 +43,16 @@ describe("DayDetailPanel", () => {
 
     expect(screen.getByTestId("section-income")).toBeInTheDocument();
     expect(screen.queryByTestId("section-expense")).not.toBeInTheDocument();
-    expect(screen.getByTestId("text-income-total")).toHaveTextContent("+$1,500.00");
-    
-    // Both transactions should be in income section
+    expect(screen.getByTestId("text-income-total")).toHaveTextContent("+$1,000.00");
+
     expect(screen.getByTestId("item-income-1")).toBeInTheDocument();
-    expect(screen.getByTestId("item-income-2")).toBeInTheDocument();
+
+    expect(screen.getByTestId("section-transfer")).toBeInTheDocument();
+    expect(screen.getByTestId("text-transfer-total")).toHaveTextContent("+$500.00");
+    expect(screen.getByTestId("item-transfer-2")).toBeInTheDocument();
   });
 
-  it("includes negative transfers in expense section", () => {
+  it("lists negative transfers separately from expense", () => {
     const transactions: ParsedTransaction[] = [
       createTransaction({ id: "1", amount: -800, category: "Expense", description: "Groceries" }),
       createTransaction({ id: "2", amount: -200, category: "Transfer", description: "Account Transfer Out" }),
@@ -60,11 +62,13 @@ describe("DayDetailPanel", () => {
 
     expect(screen.queryByTestId("section-income")).not.toBeInTheDocument();
     expect(screen.getByTestId("section-expense")).toBeInTheDocument();
-    expect(screen.getByTestId("text-expense-total")).toHaveTextContent("-$1,000.00");
-    
-    // Both transactions should be in expense section
+    expect(screen.getByTestId("text-expense-total")).toHaveTextContent("-$800.00");
+
     expect(screen.getByTestId("item-expense-1")).toBeInTheDocument();
-    expect(screen.getByTestId("item-expense-2")).toBeInTheDocument();
+
+    expect(screen.getByTestId("section-transfer")).toBeInTheDocument();
+    expect(screen.getByTestId("text-transfer-total")).toHaveTextContent("-$200.00");
+    expect(screen.getByTestId("item-transfer-2")).toBeInTheDocument();
   });
 
   it("handles mixed transfers and regular transactions", () => {
@@ -79,17 +83,20 @@ describe("DayDetailPanel", () => {
 
     expect(screen.getByTestId("section-income")).toBeInTheDocument();
     expect(screen.getByTestId("section-expense")).toBeInTheDocument();
-    
-    // Income: 3000 + 500 = 3500
-    expect(screen.getByTestId("text-income-total")).toHaveTextContent("+$3,500.00");
-    // Expense: -1200 + -300 = -1500
-    expect(screen.getByTestId("text-expense-total")).toHaveTextContent("-$1,500.00");
-    
-    // Check all transactions are displayed
+    expect(screen.getByTestId("section-transfer")).toBeInTheDocument();
+
+    // Income: 3000
+    expect(screen.getByTestId("text-income-total")).toHaveTextContent("+$3,000.00");
+    // Expense: -1200
+    expect(screen.getByTestId("text-expense-total")).toHaveTextContent("-$1,200.00");
+    // Transfer total: 500 - 300 = 200
+    expect(screen.getByTestId("text-transfer-total")).toHaveTextContent("+$200.00");
+
+    // Check transactions by section
     expect(screen.getByTestId("item-income-1")).toBeInTheDocument();
-    expect(screen.getByTestId("item-income-2")).toBeInTheDocument();
     expect(screen.getByTestId("item-expense-3")).toBeInTheDocument();
-    expect(screen.getByTestId("item-expense-4")).toBeInTheDocument();
+    expect(screen.getByTestId("item-transfer-2")).toBeInTheDocument();
+    expect(screen.getByTestId("item-transfer-4")).toBeInTheDocument();
   });
 
   it("displays formatted date correctly", () => {
@@ -242,4 +249,3 @@ describe("DayDetailPanel", () => {
     // Separator exists when both sections are present (though we can't easily test the Separator component itself)
   });
 });
-

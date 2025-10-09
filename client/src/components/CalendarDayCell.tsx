@@ -84,8 +84,12 @@ export default function CalendarDayCell({
   }, [date]);
   const transactionCount = resolvedSummary.transactions.length;
   const netClass = netColorClass(resolvedSummary.totals.net);
-  const incomeCount = resolvedSummary.transactions.filter((t) => t.amount > 0).length;
-  const expenseCount = resolvedSummary.transactions.filter((t) => t.amount < 0).length;
+  const incomeCount = resolvedSummary.transactions.filter(
+    (t) => t.category !== "Transfer" && t.amount > 0
+  ).length;
+  const expenseCount = resolvedSummary.transactions.filter(
+    (t) => t.category !== "Transfer" && t.amount < 0
+  ).length;
   return (
     <div
       role="button"

@@ -17,15 +17,13 @@ export default function InsightsSidebar({
   transactions,
   currentMonth,
 }: InsightsSidebarProps) {
-  // Calculate totals based on amount sign (positive = income, negative = expense)
-  // This approach works regardless of category and handles transfers correctly
-  const totalIncome = transactions
-    .filter((t) => t.amount > 0)
-    .reduce((sum, t) => sum + t.amount, 0);
+  const incomeTransactions = transactions.filter((t) => t.category === "Income");
+  const expenseTransactions = transactions.filter((t) => t.category === "Expense");
+  const transferTransactions = transactions.filter((t) => t.category === "Transfer");
 
-  const totalExpense = transactions
-    .filter((t) => t.amount < 0)
-    .reduce((sum, t) => sum + t.amount, 0);
+  const totalIncome = incomeTransactions.reduce((sum, t) => sum + t.amount, 0);
+  const totalExpense = expenseTransactions.reduce((sum, t) => sum + t.amount, 0);
+  const totalTransfer = transferTransactions.reduce((sum, t) => sum + t.amount, 0);
 
   const netTotal = totalIncome + totalExpense;
 
@@ -33,19 +31,26 @@ export default function InsightsSidebar({
 
   const currencySymbol = transactions[0]?.currencySymbol ?? DEFAULT_CURRENCY_SYMBOL;
 
-  // For display purposes, show Income/Expense labels (Transfer category is internal)
   const categoryBreakdown = [
-    { 
-      category: "Income", 
-      count: transactions.filter((t) => t.amount > 0).length, 
-      total: totalIncome 
+    {
+      category: "Income",
+      count: incomeTransactions.length,
+      total: totalIncome,
     },
-    { 
-      category: "Expense", 
-      count: transactions.filter((t) => t.amount < 0).length, 
-      total: totalExpense 
+    {
+      category: "Expense",
+      count: expenseTransactions.length,
+      total: totalExpense,
     },
   ];
+
+  if (transferTransactions.length > 0) {
+    categoryBreakdown.push({
+      category: "Transfer",
+      count: transferTransactions.length,
+      total: totalTransfer,
+    });
+  }
 
   return (
     <div className="space-y-4">
@@ -84,6 +89,21 @@ export default function InsightsSidebar({
                 {formatCurrency(totalExpense, currencySymbol)}
               </span>
             </div>
+
+            {transferTransactions.length > 0 && (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Repeat className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Transfers</span>
+                </div>
+                <span
+                  className="text-sm font-semibold text-muted-foreground"
+                  data-testid="text-total-transfer"
+                >
+                  {formatCurrency(totalTransfer, currencySymbol)}
+                </span>
+              </div>
+            )}
           </div>
 
           <Separator />
