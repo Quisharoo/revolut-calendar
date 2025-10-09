@@ -19,40 +19,45 @@ const sampleTransactions: ParsedTransaction[] = Array.from({ length: 12 }, (_, i
   isRecurring: false,
 }));
 
+const calendarGridProps = vi.fn();
+
 vi.mock("@/hooks/use-media-query", () => ({
   useMediaQuery: vi.fn(),
 }));
 
 import CalendarPage from "../calendar";
 import { useMediaQuery } from "@/hooks/use-media-query";
+const mediaQueryMock = vi.mocked(useMediaQuery);
 
 vi.mock("@/components/CalendarGrid", () => ({
   __esModule: true,
-  default: ({
-    onDayClick,
-  }: {
+  default: (props: {
     onDayClick?: (date: Date, transactions: ParsedTransaction[]) => void;
-  }) => (
-    <button
-      type="button"
-      data-testid="button-open-day"
-      onClick={() =>
-        onDayClick?.(new Date("2024-05-18T12:00:00Z"), sampleTransactions)
-      }
-    >
-      Open Day Detail
-    </button>
-  ),
+    transactions: ParsedTransaction[];
+  }) => {
+    calendarGridProps(props);
+    const { onDayClick } = props;
+    return (
+      <button
+        type="button"
+        data-testid="button-open-day"
+        onClick={() =>
+          onDayClick?.(new Date("2024-05-18T12:00:00Z"), sampleTransactions)
+        }
+      >
+        Open Day Detail
+      </button>
+    );
+  },
 }));
 
+beforeEach(() => {
+  calendarGridProps.mockClear();
+  mediaQueryMock.mockReset();
+  mediaQueryMock.mockReturnValue(true);
+});
+
 describe("CalendarPage day detail interactions", () => {
-  const mediaQueryMock = vi.mocked(useMediaQuery);
-
-  beforeEach(() => {
-    mediaQueryMock.mockReset();
-    mediaQueryMock.mockReturnValue(true);
-  });
-
   it("renders desktop side panel without sheet dialog and respects overlay close", async () => {
     const user = userEvent.setup();
 
@@ -97,6 +102,81 @@ describe("CalendarPage day detail interactions", () => {
     await waitFor(() => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
+  });
+});
+
+describe("CalendarPage filters", () => {
+  it("filters to recurring transactions when recurring filter active", async () => {
+    const user = userEvent.setup();
+
+    const transactions: ParsedTransaction[] = [
+      {
+        id: "recurring-expense",
+        date: new Date("2024-05-01T12:00:00Z"),
+        description: "Streaming Service",
+        amount: -12.99,
+        category: "Expense",
+        broker: "Streamer",
+        source: { name: "Streamer", type: "merchant" },
+        isRecurring: true,
+      },
+      {
+        id: "one-off",
+        date: new Date("2024-05-03T12:00:00Z"),
+        description: "Groceries",
+        amount: -45.5,
+        category: "Expense",
+        broker: "Grocer",
+        source: { name: "Grocer", type: "merchant" },
+        isRecurring: false,
+      },
+      {
+        id: "recurring-income",
+        date: new Date("2024-05-04T12:00:00Z"),
+        description: "Salary",
+        amount: 2200,
+        category: "Income",
+        broker: "Employer",
+        source: { name: "Employer", type: "broker" },
+        isRecurring: true,
+      },
+    ];
+
+    render(<CalendarPage transactions={transactions} />);
+
+    await waitFor(() => {
+      expect(calendarGridProps).toHaveBeenCalled();
+    });
+
+    const allInitialLists = calendarGridProps.mock.calls.map(([props]) =>
+      (props as { transactions?: ParsedTransaction[] }).transactions ?? []
+    );
+    expect(
+      allInitialLists.some((list) => list.length === transactions.length)
+    ).toBe(true);
+
+    const recurringBadges = screen.getAllByTestId("badge-filter-recurring");
+    const initialCallCount = calendarGridProps.mock.calls.length;
+    await user.click(recurringBadges[0]);
+
+    await waitFor(() => {
+      expect(calendarGridProps.mock.calls.length).toBeGreaterThan(initialCallCount);
+    });
+
+    const recurringTransactions = transactions.filter((tx) => tx.isRecurring);
+    const updatedLists = calendarGridProps.mock.calls
+      .slice(initialCallCount)
+      .map(([props]) =>
+        (props as { transactions?: ParsedTransaction[] }).transactions ?? []
+      );
+
+    expect(
+      updatedLists.some(
+        (list) =>
+          list.length === recurringTransactions.length &&
+          list.every((tx) => tx.isRecurring)
+      )
+    ).toBe(true);
   });
 });
 

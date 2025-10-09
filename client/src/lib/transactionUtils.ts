@@ -113,6 +113,19 @@ const defaultSource: TransactionSource = {
 
 const cloneDateWithoutTime = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
 
+/**
+ * Creates a date key from a Date object using local timezone.
+ * This avoids timezone-related shifts when grouping transactions by day.
+ * @param date The date to convert to a key
+ * @returns A string in format YYYY-MM-DD based on local date components
+ */
+export const getLocalDateKey = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 const applyAmountToTotals = (totals: DailyTotals, transaction: ParsedTransaction) => {
   if (transaction.category === "Income") {
     totals.income += transaction.amount;
@@ -188,7 +201,7 @@ export const summarizeTransactionsByDate = (
   const summaries = new Map<string, SummaryAccumulator>();
 
   transactions.forEach((transaction) => {
-    const dateKey = transaction.date.toISOString().split("T")[0];
+    const dateKey = getLocalDateKey(transaction.date);
     let summary = summaries.get(dateKey);
 
     if (!summary) {

@@ -20,13 +20,10 @@ export default function DayDetailPanel({
   transactions,
   onClose,
 }: DayDetailPanelProps) {
-  // Group transfers with income/expense based on amount sign (positive = income, negative = expense)
-  const incomeTransactions = transactions.filter((t) => 
-    t.category === "Income" || (t.category === "Transfer" && t.amount > 0)
-  );
-  const expenseTransactions = transactions.filter((t) => 
-    t.category === "Expense" || (t.category === "Transfer" && t.amount < 0)
-  );
+  // Group by amount sign (positive = income, negative = expense)
+  // This works regardless of category and handles transfers correctly
+  const incomeTransactions = transactions.filter((t) => t.amount > 0);
+  const expenseTransactions = transactions.filter((t) => t.amount < 0);
 
   const totalIncome = incomeTransactions.reduce((sum, t) => sum + t.amount, 0);
   const totalExpense = expenseTransactions.reduce((sum, t) => sum + t.amount, 0);

@@ -3,6 +3,7 @@ import type { ParsedTransaction } from "@shared/schema";
 import {
   formatCurrency,
   summarizeTransactionsByDate,
+  getLocalDateKey,
   type DailySummary,
   DEFAULT_CURRENCY_SYMBOL,
 } from "@/lib/transactionUtils";
@@ -39,7 +40,7 @@ export default function CalendarDayCell({
       return summary;
     }
 
-    const fallbackKey = date.toISOString().split("T")[0];
+    const fallbackKey = getLocalDateKey(date);
     const baseTransactions = transactions ?? [];
     if (baseTransactions.length === 0) {
       return {
