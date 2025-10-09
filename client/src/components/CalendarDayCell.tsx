@@ -74,6 +74,13 @@ export default function CalendarDayCell({
   }, [summary, transactions, date]);
 
   const isToday = date.toDateString() === new Date().toDateString();
+  const isFutureDate = useMemo(() => {
+    const normalizedDate = new Date(date);
+    normalizedDate.setHours(0, 0, 0, 0);
+    const normalizedToday = new Date();
+    normalizedToday.setHours(0, 0, 0, 0);
+    return normalizedDate.getTime() > normalizedToday.getTime();
+  }, [date]);
   const transactionCount = resolvedSummary.transactions.length;
   const netClass = netColorClass(resolvedSummary.totals.net);
   const incomeCount = resolvedSummary.transactions.filter((t) => t.amount > 0).length;
@@ -129,17 +136,17 @@ export default function CalendarDayCell({
       <div className="flex flex-1 flex-col px-3 pb-3">
         {transactionCount > 0 ? (
           <>
-            <div className="mt-1 flex flex-col gap-2">
-              <div className="flex w-full flex-wrap items-baseline gap-x-2 gap-y-1">
+            <div className="mt-1 flex flex-col gap-1.5">
+              <div className="flex w-full items-baseline justify-between gap-2">
                 <span
-                  className={`text-lg font-semibold tabular-nums tracking-tight ${netClass}`}
+                  className={`text-base font-bold tabular-nums tracking-tight leading-none whitespace-nowrap overflow-hidden text-ellipsis ${netClass}`}
                   data-testid="day-net-total"
                 >
                   {formatCurrency(resolvedSummary.totals.net, resolvedSummary.currencySymbol)}
                 </span>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1.5 rounded-full bg-primary/10 px-2 py-0.5">
                   <TrendingUp className="h-3 w-3 text-primary" />
                   <span className="text-xs font-medium text-primary">{incomeCount}</span>
@@ -156,7 +163,7 @@ export default function CalendarDayCell({
             className="mt-6 flex flex-1 items-center justify-center rounded-md border border-dashed border-border/60 px-3 py-4 text-[11px] text-muted-foreground"
             data-testid="empty-day-placeholder"
           >
-            No transactions
+            {!isFutureDate && "No transactions"}
           </div>
         )}
       </div>
