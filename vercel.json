@@ -3,7 +3,6 @@
   "buildCommand": "npm run build",
   "devCommand": "npm run dev",
   "installCommand": "npm install",
-  "framework": null,
   "outputDirectory": "dist/public",
   "rewrites": [
     {
@@ -16,31 +15,11 @@
     }
   ],
   "functions": {
-    "api/index.js": {
-      "runtime": "nodejs20.x",
+    "api/**/*.ts": {
       "maxDuration": 10,
       "memory": 1024
     }
   },
-  "regions": ["iad1"],
-  "env": {
-    "NODE_ENV": "production"
-  },
-  "build": {
-    "env": {
-      "NODE_ENV": "production"
-    }
-  },
-  "git": {
-    "deploymentEnabled": {
-      "main": true
-    }
-  },
-  "github": {
-    "enabled": true,
-    "autoAlias": true,
-    "silent": false,
-    "autoJobCancelation": true
-  }
+  "regions": ["iad1"]
 }
 
