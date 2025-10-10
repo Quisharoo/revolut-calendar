@@ -46,7 +46,7 @@ export default function CalendarDayCell({
       return {
         dateKey: fallbackKey,
         date,
-        totals: { income: 0, expense: 0, transfer: 0, net: 0 },
+        totals: { income: 0, expense: 0, net: 0 },
         recurringCount: 0,
         transactions: [],
         groups: [],
@@ -66,7 +66,7 @@ export default function CalendarDayCell({
     return {
       dateKey: fallbackKey,
       date,
-      totals: { income: 0, expense: 0, transfer: 0, net: 0 },
+      totals: { income: 0, expense: 0, net: 0 },
       recurringCount,
       transactions: baseTransactions,
       groups: [],
@@ -84,12 +84,8 @@ export default function CalendarDayCell({
   }, [date]);
   const transactionCount = resolvedSummary.transactions.length;
   const netClass = netColorClass(resolvedSummary.totals.net);
-  const incomeCount = resolvedSummary.transactions.filter(
-    (t) => t.category !== "Transfer" && t.amount > 0
-  ).length;
-  const expenseCount = resolvedSummary.transactions.filter(
-    (t) => t.category !== "Transfer" && t.amount < 0
-  ).length;
+  const incomeCount = resolvedSummary.transactions.filter((t) => t.amount > 0).length;
+  const expenseCount = resolvedSummary.transactions.filter((t) => t.amount < 0).length;
   return (
     <div
       role="button"

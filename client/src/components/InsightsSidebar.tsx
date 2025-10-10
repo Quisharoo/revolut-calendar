@@ -19,11 +19,9 @@ export default function InsightsSidebar({
 }: InsightsSidebarProps) {
   const incomeTransactions = transactions.filter((t) => t.category === "Income");
   const expenseTransactions = transactions.filter((t) => t.category === "Expense");
-  const transferTransactions = transactions.filter((t) => t.category === "Transfer");
 
   const totalIncome = incomeTransactions.reduce((sum, t) => sum + t.amount, 0);
   const totalExpense = expenseTransactions.reduce((sum, t) => sum + t.amount, 0);
-  const totalTransfer = transferTransactions.reduce((sum, t) => sum + t.amount, 0);
 
   const netTotal = totalIncome + totalExpense;
 
@@ -43,14 +41,6 @@ export default function InsightsSidebar({
       total: totalExpense,
     },
   ];
-
-  if (transferTransactions.length > 0) {
-    categoryBreakdown.push({
-      category: "Transfer",
-      count: transferTransactions.length,
-      total: totalTransfer,
-    });
-  }
 
   return (
     <div className="space-y-4">
@@ -89,21 +79,6 @@ export default function InsightsSidebar({
                 {formatCurrency(totalExpense, currencySymbol)}
               </span>
             </div>
-
-            {transferTransactions.length > 0 && (
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Repeat className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">Transfers</span>
-                </div>
-                <span
-                  className="text-sm font-semibold text-muted-foreground"
-                  data-testid="text-total-transfer"
-                >
-                  {formatCurrency(totalTransfer, currencySymbol)}
-                </span>
-              </div>
-            )}
           </div>
 
           <Separator />

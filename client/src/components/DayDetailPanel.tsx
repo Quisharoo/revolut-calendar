@@ -2,7 +2,7 @@ import type { ParsedTransaction } from "@shared/schema";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { X, TrendingUp, TrendingDown, Repeat } from "lucide-react";
+import { X, TrendingUp, TrendingDown } from "lucide-react";
 import {
   formatCurrency,
   getCategoryColor,
@@ -20,23 +20,11 @@ export default function DayDetailPanel({
   transactions,
   onClose,
 }: DayDetailPanelProps) {
-  // Split transactions into income/expense while keeping transfers separate
-  const incomeTransactions = transactions.filter(
-    (t) => t.category !== "Transfer" && t.amount > 0
-  );
-  const expenseTransactions = transactions.filter(
-    (t) => t.category !== "Transfer" && t.amount < 0
-  );
-  const transferTransactions = transactions.filter(
-    (t) => t.category === "Transfer"
-  );
+  const incomeTransactions = transactions.filter((t) => t.amount > 0);
+  const expenseTransactions = transactions.filter((t) => t.amount < 0);
 
   const totalIncome = incomeTransactions.reduce((sum, t) => sum + t.amount, 0);
   const totalExpense = expenseTransactions.reduce((sum, t) => sum + t.amount, 0);
-  const totalTransfer = transferTransactions.reduce(
-    (sum, t) => sum + t.amount,
-    0
-  );
   const currencySymbol = transactions[0]?.currencySymbol ?? DEFAULT_CURRENCY_SYMBOL;
 
   const formattedDate = date.toLocaleDateString("en-US", {
@@ -110,10 +98,9 @@ export default function DayDetailPanel({
           </div>
         )}
 
-        {incomeTransactions.length > 0 &&
-          (expenseTransactions.length > 0 || transferTransactions.length > 0) && (
-            <Separator />
-          )}
+        {incomeTransactions.length > 0 && expenseTransactions.length > 0 && (
+          <Separator />
+        )}
 
         {expenseTransactions.length > 0 && (
           <div data-testid="section-expense">
@@ -148,62 +135,6 @@ export default function DayDetailPanel({
                       </div>
                       <span className={`text-sm font-semibold ${getCategoryColor(transaction.category)} whitespace-nowrap`}>
                         {formatCurrency(transaction.amount, transaction.currencySymbol ?? currencySymbol)}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </Card>
-          </div>
-        )}
-
-        {expenseTransactions.length > 0 && transferTransactions.length > 0 && (
-          <Separator />
-        )}
-
-        {transferTransactions.length > 0 && (
-          <div data-testid="section-transfer">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Repeat className="w-5 h-5 text-muted-foreground" />
-                <h3 className="text-lg font-semibold text-foreground">Transfers</h3>
-              </div>
-              <span
-                className="text-lg font-bold text-muted-foreground"
-                data-testid="text-transfer-total"
-              >
-                {formatCurrency(totalTransfer, currencySymbol)}
-              </span>
-            </div>
-            <Card className="p-4">
-              <div className="space-y-3">
-                {transferTransactions.map((transaction) => {
-                  const sourceLabel = transaction.source?.name ?? transaction.broker;
-                  const amountColor =
-                    transaction.amount >= 0 ? "text-primary" : "text-destructive";
-                  return (
-                    <div
-                      key={transaction.id}
-                      className="flex items-start justify-between gap-4 pb-3 last:pb-0 border-b border-border last:border-0"
-                      data-testid={`item-transfer-${transaction.id}`}
-                    >
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">
-                          {transaction.description}
-                        </p>
-                        {sourceLabel && (
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {sourceLabel}
-                          </p>
-                        )}
-                      </div>
-                      <span
-                        className={`text-sm font-semibold whitespace-nowrap ${amountColor}`}
-                      >
-                        {formatCurrency(
-                          transaction.amount,
-                          transaction.currencySymbol ?? currencySymbol
-                        )}
                       </span>
                     </div>
                   );

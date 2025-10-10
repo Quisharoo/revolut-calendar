@@ -56,74 +56,94 @@ describe("InsightsSidebar", () => {
     expect(screen.getByTestId("text-total-expense")).toHaveTextContent("-$2,100.00");
   });
 
-  it("excludes positive transfer transactions from income totals", () => {
+  it("counts transfer-like income transactions within income totals", () => {
     const transactions: ParsedTransaction[] = [
       createTransaction({ id: "1", amount: 1000, category: "Income" }),
-      createTransaction({ id: "2", amount: 500, category: "Transfer" }), // Positive transfer
+      createTransaction({
+        id: "2",
+        amount: 500,
+        category: "Income",
+        description: "Transfer from Savings",
+      }),
     ];
 
     render(<InsightsSidebar transactions={transactions} currentMonth="October" />);
 
-    expect(screen.getByTestId("text-net-total")).toHaveTextContent("+$1,000.00");
-    expect(screen.getByTestId("text-total-income")).toHaveTextContent("+$1,000.00");
+    expect(screen.getByTestId("text-net-total")).toHaveTextContent("+$1,500.00");
+    expect(screen.getByTestId("text-total-income")).toHaveTextContent("+$1,500.00");
     expect(screen.getByTestId("text-total-expense")).toHaveTextContent("+$0.00");
-    expect(screen.getByTestId("text-total-transfer")).toHaveTextContent("+$500.00");
-
-    expect(screen.getByTestId("text-category-income-count")).toHaveTextContent("1 transaction");
-    expect(screen.getByTestId("text-category-transfer-count")).toHaveTextContent("1 transaction");
+    expect(screen.queryByTestId("text-total-transfer")).toBeNull();
   });
 
-  it("excludes negative transfer transactions from expense totals", () => {
+  it("counts transfer-like expense transactions within expense totals", () => {
     const transactions: ParsedTransaction[] = [
       createTransaction({ id: "1", amount: -800, category: "Expense" }),
-      createTransaction({ id: "2", amount: -200, category: "Transfer" }), // Negative transfer
+      createTransaction({
+        id: "2",
+        amount: -200,
+        category: "Expense",
+        description: "Transfer to Savings",
+      }),
     ];
 
     render(<InsightsSidebar transactions={transactions} currentMonth="October" />);
 
-    expect(screen.getByTestId("text-net-total")).toHaveTextContent("-$800.00");
+    expect(screen.getByTestId("text-net-total")).toHaveTextContent("-$1,000.00");
     expect(screen.getByTestId("text-total-income")).toHaveTextContent("+$0.00");
-    expect(screen.getByTestId("text-total-expense")).toHaveTextContent("-$800.00");
-    expect(screen.getByTestId("text-total-transfer")).toHaveTextContent("-$200.00");
-
-    expect(screen.getByTestId("text-category-expense-count")).toHaveTextContent("1 transaction");
-    expect(screen.getByTestId("text-category-transfer-count")).toHaveTextContent("1 transaction");
+    expect(screen.getByTestId("text-total-expense")).toHaveTextContent("-$1,000.00");
+    expect(screen.queryByTestId("text-total-transfer")).toBeNull();
   });
 
-  it("handles mixed transfers correctly", () => {
+  it("aggregates mixed transfer-like activity with other transactions", () => {
     const transactions: ParsedTransaction[] = [
       createTransaction({ id: "1", amount: 3000, category: "Income" }),
-      createTransaction({ id: "2", amount: 500, category: "Transfer" }), // Positive transfer
+      createTransaction({
+        id: "2",
+        amount: 500,
+        category: "Income",
+        description: "Transfer from Brokerage",
+      }),
       createTransaction({ id: "3", amount: -1000, category: "Expense" }),
-      createTransaction({ id: "4", amount: -200, category: "Transfer" }), // Negative transfer
+      createTransaction({
+        id: "4",
+        amount: -200,
+        category: "Expense",
+        description: "Transfer to Savings",
+      }),
     ];
 
     render(<InsightsSidebar transactions={transactions} currentMonth="October" />);
 
-    expect(screen.getByTestId("text-net-total")).toHaveTextContent("+$2,000.00");
-    expect(screen.getByTestId("text-total-income")).toHaveTextContent("+$3,000.00");
-    expect(screen.getByTestId("text-total-expense")).toHaveTextContent("-$1,000.00");
-    expect(screen.getByTestId("text-total-transfer")).toHaveTextContent("+$300.00");
-
-    expect(screen.getByTestId("text-category-income-total")).toHaveTextContent("+$3,000.00");
-    expect(screen.getByTestId("text-category-expense-total")).toHaveTextContent("-$1,000.00");
-    expect(screen.getByTestId("text-category-transfer-total")).toHaveTextContent("+$300.00");
+    expect(screen.getByTestId("text-net-total")).toHaveTextContent("+$2,300.00");
+    expect(screen.getByTestId("text-total-income")).toHaveTextContent("+$3,500.00");
+    expect(screen.getByTestId("text-total-expense")).toHaveTextContent("-$1,200.00");
+    expect(screen.queryByTestId("text-total-transfer")).toBeNull();
   });
 
   it("displays correct transaction counts in category breakdown", () => {
     const transactions: ParsedTransaction[] = [
       createTransaction({ id: "1", amount: 1000, category: "Income" }),
       createTransaction({ id: "2", amount: 500, category: "Income" }),
-      createTransaction({ id: "3", amount: 300, category: "Transfer" }), // Positive
+      createTransaction({
+        id: "3",
+        amount: 300,
+        category: "Income",
+        description: "Transfer from Credit Card",
+      }),
       createTransaction({ id: "4", amount: -800, category: "Expense" }),
-      createTransaction({ id: "5", amount: -200, category: "Transfer" }), // Negative
+      createTransaction({
+        id: "5",
+        amount: -200,
+        category: "Expense",
+        description: "Transfer to Brokerage",
+      }),
     ];
 
     render(<InsightsSidebar transactions={transactions} currentMonth="October" />);
 
-    expect(screen.getByTestId("text-category-income-count")).toHaveTextContent("2 transactions");
-    expect(screen.getByTestId("text-category-expense-count")).toHaveTextContent("1 transaction");
-    expect(screen.getByTestId("text-category-transfer-count")).toHaveTextContent("2 transactions");
+    expect(screen.getByTestId("text-category-income-count")).toHaveTextContent("3 transactions");
+    expect(screen.getByTestId("text-category-expense-count")).toHaveTextContent("2 transactions");
+    expect(screen.queryByTestId("text-category-transfer-count")).toBeNull();
   });
 
   it("handles recurring transaction count correctly", () => {
@@ -167,7 +187,12 @@ describe("InsightsSidebar", () => {
 
   it("handles zero-amount transactions", () => {
     const transactions: ParsedTransaction[] = [
-      createTransaction({ id: "1", amount: 0, category: "Transfer" }),
+      createTransaction({
+        id: "1",
+        amount: 0,
+        category: "Income",
+        description: "Zero transfer",
+      }),
       createTransaction({ id: "2", amount: 1000, category: "Income" }),
     ];
 
@@ -177,21 +202,31 @@ describe("InsightsSidebar", () => {
     expect(screen.getByTestId("text-net-total")).toHaveTextContent("+$1,000.00");
     expect(screen.getByTestId("text-total-income")).toHaveTextContent("+$1,000.00");
     expect(screen.getByTestId("text-total-expense")).toHaveTextContent("+$0.00");
-    expect(screen.getByTestId("text-total-transfer")).toHaveTextContent("+$0.00");
+    expect(screen.queryByTestId("text-total-transfer")).toBeNull();
   });
 
-  it("calculates category breakdown totals correctly with transfers", () => {
+  it("calculates category breakdown totals including transfer-like data", () => {
     const transactions: ParsedTransaction[] = [
       createTransaction({ id: "1", amount: 2000, category: "Income" }),
-      createTransaction({ id: "2", amount: 750, category: "Transfer" }), // Positive
+      createTransaction({
+        id: "2",
+        amount: 750,
+        category: "Income",
+        description: "Transfer from Brokerage",
+      }),
       createTransaction({ id: "3", amount: -1200, category: "Expense" }),
-      createTransaction({ id: "4", amount: -300, category: "Transfer" }), // Negative
+      createTransaction({
+        id: "4",
+        amount: -300,
+        category: "Expense",
+        description: "Transfer to Savings",
+      }),
     ];
 
     render(<InsightsSidebar transactions={transactions} currentMonth="October" />);
 
-    expect(screen.getByTestId("text-category-income-total")).toHaveTextContent("+$2,000.00");
-    expect(screen.getByTestId("text-category-expense-total")).toHaveTextContent("-$1,200.00");
-    expect(screen.getByTestId("text-category-transfer-total")).toHaveTextContent("+$450.00");
+    expect(screen.getByTestId("text-category-income-total")).toHaveTextContent("+$2,750.00");
+    expect(screen.getByTestId("text-category-expense-total")).toHaveTextContent("-$1,500.00");
+    expect(screen.queryByTestId("text-category-transfer-total")).toBeNull();
   });
 });

@@ -7,7 +7,6 @@ import type {
 export interface DailyTotals {
   income: number;
   expense: number;
-  transfer: number;
   net: number;
 }
 
@@ -36,10 +35,6 @@ export const getCategoryColor = (category: string): string => {
       return "text-primary";
     case "Expense":
       return "text-destructive";
-    case "Transfer":
-      // Transfer category exists in schema but is hidden in UI
-      // Components should handle transfer display logic before calling this
-      return "text-muted-foreground";
     default:
       return "text-foreground";
   }
@@ -51,10 +46,6 @@ export const getCategoryBgColor = (category: string): string => {
       return "bg-primary/10";
     case "Expense":
       return "bg-destructive/10";
-    case "Transfer":
-      // Transfer category exists in schema but is hidden in UI
-      // Components should handle transfer display logic before calling this
-      return "bg-muted/50";
     default:
       return "bg-accent";
   }
@@ -66,10 +57,6 @@ export const getCategoryDotColor = (category: string): string => {
       return "bg-primary";
     case "Expense":
       return "bg-destructive";
-    case "Transfer":
-      // Transfer category exists in schema but is hidden in UI
-      // Components should handle transfer display logic before calling this
-      return "bg-muted-foreground";
     default:
       return "bg-foreground";
   }
@@ -130,18 +117,13 @@ const applyAmountToTotals = (
   totals: DailyTotals,
   transaction: ParsedTransaction
 ) => {
-  if (transaction.category === "Income") {
+  if (transaction.amount >= 0) {
     totals.income += transaction.amount;
-  } else if (transaction.category === "Expense") {
-    totals.expense += transaction.amount;
   } else {
-    totals.transfer += transaction.amount;
+    totals.expense += transaction.amount;
   }
   totals.net = totals.income + totals.expense;
 };
-
-const totalsMagnitude = (totals: DailyTotals) =>
-  Math.abs(totals.income) + Math.abs(totals.expense) + Math.abs(totals.transfer);
 
 export const resolveTransactionSource = (
   transaction: ParsedTransaction
@@ -211,20 +193,20 @@ export const summarizeTransactionsByDate = (
       summary = {
         dateKey,
         date: cloneDateWithoutTime(transaction.date),
-        totals: { income: 0, expense: 0, transfer: 0, net: 0 },
+        totals: { income: 0, expense: 0, net: 0 },
         recurringCount: 0,
         transactions: [],
         groups: [],
         currencySymbol: transaction.currencySymbol ?? DEFAULT_CURRENCY_SYMBOL,
         incomeGroup: {
           source: { name: "Income", type: "unknown" },
-          totals: { income: 0, expense: 0, transfer: 0, net: 0 },
+          totals: { income: 0, expense: 0, net: 0 },
           transactions: [],
           currencySymbol: transaction.currencySymbol ?? DEFAULT_CURRENCY_SYMBOL,
         },
         expenseGroup: {
           source: { name: "Expenses", type: "unknown" },
-          totals: { income: 0, expense: 0, transfer: 0, net: 0 },
+          totals: { income: 0, expense: 0, net: 0 },
           transactions: [],
           currencySymbol: transaction.currencySymbol ?? DEFAULT_CURRENCY_SYMBOL,
         },
@@ -242,27 +224,15 @@ export const summarizeTransactionsByDate = (
 
     applyAmountToTotals(summary.totals, transaction);
 
-    // Group by income (positive amounts) vs expenses (negative amounts)
-    // Transfers remain available in summary.transactions but are kept out of groups
-    if (transaction.category === "Transfer") {
-      return;
-    }
-
     if (transaction.amount > 0) {
       summary.incomeGroup.transactions.push(transaction);
-      summary.incomeGroup.totals.net += transaction.amount;
-      if (transaction.category === "Income") {
-        summary.incomeGroup.totals.income += transaction.amount;
-      }
+      applyAmountToTotals(summary.incomeGroup.totals, transaction);
       if (transaction.currencySymbol) {
         summary.incomeGroup.currencySymbol = transaction.currencySymbol;
       }
     } else if (transaction.amount < 0) {
       summary.expenseGroup.transactions.push(transaction);
-      summary.expenseGroup.totals.net += transaction.amount;
-      if (transaction.category === "Expense") {
-        summary.expenseGroup.totals.expense += transaction.amount;
-      }
+      applyAmountToTotals(summary.expenseGroup.totals, transaction);
       if (transaction.currencySymbol) {
         summary.expenseGroup.currencySymbol = transaction.currencySymbol;
       }

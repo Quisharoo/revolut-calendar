@@ -33,70 +33,79 @@ describe("DayDetailPanel", () => {
     expect(screen.getByTestId("text-expense-total")).toHaveTextContent("-$500.00");
   });
 
-  it("lists positive transfers separately from income", () => {
+  it("shows inbound transfers within the income section", () => {
     const transactions: ParsedTransaction[] = [
       createTransaction({ id: "1", amount: 1000, category: "Income", description: "Salary" }),
-      createTransaction({ id: "2", amount: 500, category: "Transfer", description: "Account Transfer In" }),
+      createTransaction({
+        id: "2",
+        amount: 500,
+        category: "Income",
+        description: "Transfer from Savings",
+      }),
     ];
 
     render(<DayDetailPanel date={new Date("2024-10-15")} transactions={transactions} onClose={mockOnClose} />);
 
     expect(screen.getByTestId("section-income")).toBeInTheDocument();
     expect(screen.queryByTestId("section-expense")).not.toBeInTheDocument();
-    expect(screen.getByTestId("text-income-total")).toHaveTextContent("+$1,000.00");
-
+    expect(screen.queryByTestId("section-transfer")).toBeNull();
+    expect(screen.getByTestId("text-income-total")).toHaveTextContent("+$1,500.00");
     expect(screen.getByTestId("item-income-1")).toBeInTheDocument();
-
-    expect(screen.getByTestId("section-transfer")).toBeInTheDocument();
-    expect(screen.getByTestId("text-transfer-total")).toHaveTextContent("+$500.00");
-    expect(screen.getByTestId("item-transfer-2")).toBeInTheDocument();
+    expect(screen.getByTestId("item-income-2")).toBeInTheDocument();
   });
 
-  it("lists negative transfers separately from expense", () => {
+  it("shows outbound transfers within the expense section", () => {
     const transactions: ParsedTransaction[] = [
       createTransaction({ id: "1", amount: -800, category: "Expense", description: "Groceries" }),
-      createTransaction({ id: "2", amount: -200, category: "Transfer", description: "Account Transfer Out" }),
+      createTransaction({
+        id: "2",
+        amount: -200,
+        category: "Expense",
+        description: "Transfer to Savings",
+      }),
     ];
 
     render(<DayDetailPanel date={new Date("2024-10-15")} transactions={transactions} onClose={mockOnClose} />);
 
     expect(screen.queryByTestId("section-income")).not.toBeInTheDocument();
     expect(screen.getByTestId("section-expense")).toBeInTheDocument();
-    expect(screen.getByTestId("text-expense-total")).toHaveTextContent("-$800.00");
-
+    expect(screen.queryByTestId("section-transfer")).toBeNull();
+    expect(screen.getByTestId("text-expense-total")).toHaveTextContent("-$1,000.00");
     expect(screen.getByTestId("item-expense-1")).toBeInTheDocument();
-
-    expect(screen.getByTestId("section-transfer")).toBeInTheDocument();
-    expect(screen.getByTestId("text-transfer-total")).toHaveTextContent("-$200.00");
-    expect(screen.getByTestId("item-transfer-2")).toBeInTheDocument();
+    expect(screen.getByTestId("item-expense-2")).toBeInTheDocument();
   });
 
-  it("handles mixed transfers and regular transactions", () => {
+  it("handles mixed transfer-like and regular transactions", () => {
     const transactions: ParsedTransaction[] = [
       createTransaction({ id: "1", amount: 3000, category: "Income", description: "Salary" }),
-      createTransaction({ id: "2", amount: 500, category: "Transfer", description: "Transfer In" }),
+      createTransaction({
+        id: "2",
+        amount: 500,
+        category: "Income",
+        description: "Transfer from Brokerage",
+      }),
       createTransaction({ id: "3", amount: -1200, category: "Expense", description: "Rent" }),
-      createTransaction({ id: "4", amount: -300, category: "Transfer", description: "Transfer Out" }),
+      createTransaction({
+        id: "4",
+        amount: -300,
+        category: "Expense",
+        description: "Transfer to Savings",
+      }),
     ];
 
     render(<DayDetailPanel date={new Date("2024-10-15")} transactions={transactions} onClose={mockOnClose} />);
 
     expect(screen.getByTestId("section-income")).toBeInTheDocument();
     expect(screen.getByTestId("section-expense")).toBeInTheDocument();
-    expect(screen.getByTestId("section-transfer")).toBeInTheDocument();
+    expect(screen.queryByTestId("section-transfer")).toBeNull();
 
-    // Income: 3000
-    expect(screen.getByTestId("text-income-total")).toHaveTextContent("+$3,000.00");
-    // Expense: -1200
-    expect(screen.getByTestId("text-expense-total")).toHaveTextContent("-$1,200.00");
-    // Transfer total: 500 - 300 = 200
-    expect(screen.getByTestId("text-transfer-total")).toHaveTextContent("+$200.00");
+    expect(screen.getByTestId("text-income-total")).toHaveTextContent("+$3,500.00");
+    expect(screen.getByTestId("text-expense-total")).toHaveTextContent("-$1,500.00");
 
-    // Check transactions by section
     expect(screen.getByTestId("item-income-1")).toBeInTheDocument();
+    expect(screen.getByTestId("item-income-2")).toBeInTheDocument();
     expect(screen.getByTestId("item-expense-3")).toBeInTheDocument();
-    expect(screen.getByTestId("item-transfer-2")).toBeInTheDocument();
-    expect(screen.getByTestId("item-transfer-4")).toBeInTheDocument();
+    expect(screen.getByTestId("item-expense-4")).toBeInTheDocument();
   });
 
   it("displays formatted date correctly", () => {

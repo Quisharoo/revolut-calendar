@@ -1,4 +1,4 @@
-export type TransactionCategory = "Income" | "Expense" | "Transfer";
+export type TransactionCategory = "Income" | "Expense";
 
 export type TransactionSourceType =
   | "broker"

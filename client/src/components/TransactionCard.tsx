@@ -7,19 +7,9 @@ interface TransactionCardProps {
 }
 
 export default function TransactionCard({ transaction }: TransactionCardProps) {
-  // Display transfers as Income or Expense in the UI based on amount sign
-  // Transfer category still exists in schema but is hidden from users
-  const displayCategory = transaction.category === "Transfer"
-    ? (transaction.amount > 0 ? "Income" : "Expense")
-    : transaction.category;
-  
-  const displayCategoryColor = transaction.category === "Transfer"
-    ? (transaction.amount > 0 ? "text-primary" : "text-destructive")
-    : getCategoryColor(transaction.category);
-  
-  const displayCategoryBgColor = transaction.category === "Transfer"
-    ? (transaction.amount > 0 ? "bg-primary/10" : "bg-destructive/10")
-    : getCategoryBgColor(transaction.category);
+  const displayCategory = transaction.category;
+  const displayCategoryColor = getCategoryColor(displayCategory);
+  const displayCategoryBgColor = getCategoryBgColor(displayCategory);
 
   return (
     <div
