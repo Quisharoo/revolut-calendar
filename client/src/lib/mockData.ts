@@ -8,7 +8,8 @@ const inferSourceType = (transaction: ParsedTransaction): TransactionSourceType 
   if (transaction.category === "Income") {
     return "broker";
   }
-  if (transaction.category === "Transfer") {
+  const label = `${transaction.broker ?? ""} ${transaction.description}`.toLowerCase();
+  if (label.includes("transfer") || label.includes("savings")) {
     return "account";
   }
   return "merchant";
@@ -201,7 +202,7 @@ export const generateDemoData = (): ParsedTransaction[] => {
       date: new Date(currentYear, currentMonth, 15),
       description: "Transfer to Savings",
       amount: -500,
-      category: "Transfer",
+      category: "Expense",
       broker: "Bank Transfer",
       isRecurring: true,
     },
@@ -210,7 +211,7 @@ export const generateDemoData = (): ParsedTransaction[] => {
       date: new Date(currentYear, currentMonth, 15),
       description: "Investment Contribution",
       amount: -1000,
-      category: "Transfer",
+      category: "Expense",
       broker: "Retirement Account",
       isRecurring: true,
     },
@@ -550,7 +551,7 @@ export const generateDemoData = (): ParsedTransaction[] => {
       date: new Date(currentYear, currentMonth, 25),
       description: "Micro-investment Auto-Deposit",
       amount: -25,
-      category: "Transfer",
+      category: "Expense",
       broker: "Acorns",
       isRecurring: true,
     },

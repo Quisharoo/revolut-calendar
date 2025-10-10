@@ -184,27 +184,21 @@ const inferCategory = (
   const type = typeValue.toLowerCase();
   const product = productValue.toLowerCase();
 
-  if (type.includes("transfer") || type.includes("topup") || product.includes("transfer")) {
-    return "Transfer";
-  }
-  if (type.includes("exchange")) {
-    return "Transfer";
-  }
-  if (type.includes("refund")) {
+  if (type.includes("refund") || product.includes("refund")) {
     return amount >= 0 ? "Income" : "Expense";
   }
-  if (type.includes("fee")) {
+  if (type.includes("fee") || product.includes("fee")) {
     return "Expense";
   }
 
-  if (amount >= 0) {
+  if (amount > 0) {
     return "Income";
   }
   if (amount < 0) {
     return "Expense";
   }
 
-  return "Transfer";
+  return "Income";
 };
 
 const inferSourceType = (
@@ -212,7 +206,11 @@ const inferSourceType = (
   typeValue: string
 ): TransactionSourceType => {
   const normalised = typeValue.toLowerCase();
-  if (category === "Transfer" || normalised.includes("transfer")) {
+  if (
+    normalised.includes("transfer") ||
+    normalised.includes("topup") ||
+    normalised.includes("exchange")
+  ) {
     return "account";
   }
   if (normalised.includes("broker")) {
@@ -345,6 +343,8 @@ export const parseRevolutCsv = (text: string): ParsedTransaction[] => {
 
     const typeValue = getValue(typeIndex);
     const productValue = getValue(productIndex);
+    const normalizedProduct = productValue.trim().toLowerCase();
+    const normalizedType = typeValue.toLowerCase();
     const sourceLabel = firstNonEmpty(getValue(counterpartyIndex), description);
 
     const amountRaw = getValue(amountIndex);
@@ -352,6 +352,12 @@ export const parseRevolutCsv = (text: string): ParsedTransaction[] => {
     const parsedAmount = parseAmount(amountRaw);
     if (Number.isNaN(parsedAmount)) {
       return;
+    }
+
+    if (normalizedProduct && normalizedProduct !== "current") {
+      if (normalizedType === "transfer" || normalizedType === "interest") {
+        return;
+      }
     }
 
     const category = inferCategory(parsedAmount, typeValue, productValue);

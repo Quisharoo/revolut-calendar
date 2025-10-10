@@ -46,7 +46,7 @@ export default function CalendarDayCell({
       return {
         dateKey: fallbackKey,
         date,
-        totals: { income: 0, expense: 0, transfer: 0, net: 0 },
+        totals: { income: 0, expense: 0, net: 0 },
         recurringCount: 0,
         transactions: [],
         groups: [],
@@ -66,7 +66,7 @@ export default function CalendarDayCell({
     return {
       dateKey: fallbackKey,
       date,
-      totals: { income: 0, expense: 0, transfer: 0, net: 0 },
+      totals: { income: 0, expense: 0, net: 0 },
       recurringCount,
       transactions: baseTransactions,
       groups: [],
