@@ -72,15 +72,13 @@ export default function FilterPanel({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="search" className="text-sm font-medium">
-          Search & Filter
-        </Label>
+
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             id="search"
             type="search"
-            placeholder="Search descriptions, merchants, or brokers..."
+            placeholder=""
             value={filters.searchText}
             onChange={(e) =>
               onFiltersChange({ ...filters, searchText: e.target.value })

@@ -159,7 +159,7 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
             direction="horizontal"
             className="hidden lg:flex flex-1"
           >
-            <ResizablePanel defaultSize={70} minSize={50}>
+            <ResizablePanel defaultSize={60} minSize={50}>
               <div className="h-full pr-3 space-y-6">
                 <MonthNavigation
                   currentDate={currentDate}
@@ -178,7 +178,7 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
 
             <ResizableHandle withHandle />
 
-            <ResizablePanel defaultSize={30} minSize={20} maxSize={40}>
+            <ResizablePanel defaultSize={10} minSize={20} maxSize={40}>
               <div className="h-full pl-3 space-y-6 overflow-y-auto">
                 <FilterPanel filters={filters} onFiltersChange={setFilters} />
                 <InsightsSidebar

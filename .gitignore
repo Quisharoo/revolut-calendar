@@ -6,11 +6,15 @@ vite.config.ts.*
 *.tar.gz
 .env
 
+# Account statements
+account-statement*.csv
+
 # IDE and editor config folders
 .codex/
 .cursor/
 .config/
 .local/
+.changelog.md
 
 # Keep these active config folders:
 # .github/ - CI/CD workflows
