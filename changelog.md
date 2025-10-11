@@ -18,6 +18,7 @@ All notable changes to this project will be documented in this file.
 - Remove redundant config folders and unused components
 - Remove GitHub Actions workflow, use Vercel's built-in Git integration
 - Remove GitHub Actions workflow, use Vercel's built-in Git integration
+- Chore(config) adding git commit linting
 
 ### Pull Requests
 
