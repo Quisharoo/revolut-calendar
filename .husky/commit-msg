@@ -1,0 +1,6 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Run commitlint but always exit with 0 to allow commits (warning mode)
+npx --no -- commitlint --edit ${1} || true
+
