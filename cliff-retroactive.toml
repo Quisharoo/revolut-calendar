@@ -1,0 +1,106 @@
+# git-cliff configuration for retroactive changelog generation
+# This config maps non-conventional commits to conventional format
+
+[changelog]
+header = """
+# Changelog\n
+All notable changes to this project will be documented in this file.\n
+"""
+body = """
+{% if version %}\
+    ## [{{ version | trim_start_matches(pat="v") }}] - {{ timestamp | date(format="%Y-%m-%d") }}
+{% else %}\
+    ## [Unreleased]
+{% endif %}\
+{% for group, commits in commits | group_by(attribute="group") %}
+    ### {{ group | striptags | trim | upper_first }}
+    {% for commit in commits %}
+        - {% if commit.scope %}**{{ commit.scope }}**: {% endif %}{{ commit.message | upper_first }}\
+          {% if commit.github.pr_number %} ([#{{ commit.github.pr_number }}](https://github.com/Quisharoo/revolut-calendar/pull/{{ commit.github.pr_number }})){% endif %}\
+    {% endfor %}
+{% endfor %}\n
+"""
+trim = true
+footer = """
+---
+
+*This changelog was generated using [git-cliff](https://git-cliff.org) with Conventional Commits format.*
+"""
+
+[git]
+conventional_commits = true
+filter_unconventional = false
+split_commits = false
+# Only use the first line of commit messages for processing
+commit_preprocessors_first_line_only = true
+
+# Preprocess commit messages to convert them to conventional format
+commit_preprocessors = [
+  # Initial commits
+  { pattern = '^Initial commit$', replace = "chore: initial commit" },
+  
+  # Features - Add/Display (match the full subject line)
+  { pattern = '^Add essential UI components.*$', replace = "feat(ui): add essential UI components and structure for the financial calendar app" },
+  { pattern = '^Set up the initial project structure.*$', replace = "chore: set up the initial project structure for the financial transaction calendar app" },
+  { pattern = '^Add detailed transaction view.*$', replace = "feat(transactions): add detailed transaction view and day selection functionality" },
+  { pattern = '^Display daily income.*$', replace = "feat(calendar): display daily income and expense summaries in calendar view" },
+  { pattern = '^Add more diverse transactions.*$', replace = "chore(data): add more diverse transactions to the demo data" },
+  { pattern = '^Add resizable sidebar.*$', replace = "feat(ui): add resizable sidebar for desktop layout" },
+  { pattern = '^Hide transfer category.*$', replace = "feat(ui): hide transfer category from UI while maintaining schema compatibility" },
+  { pattern = '^Add currency-aware.*$', replace = "feat(calendar): add currency-aware calendar UI" },
+  { pattern = '^Add Vercel deployment configuration$', replace = "chore(deploy): add Vercel deployment configuration" },
+  
+  # Fixes
+  { pattern = '^Fix calendar cell layout and transaction display$', replace = "fix(calendar): fix calendar cell layout and transaction display" },
+  { pattern = '^Fix Vercel deployment configuration$', replace = "fix(deploy): fix Vercel deployment configuration" },
+  { pattern = '^Fix timezone date shift bug.*$', replace = "fix(calendar): fix timezone date shift bug and sidebar calculation issues" },
+  { pattern = '^Fix transfer handling.*$', replace = "fix(transactions): fix transfer handling in day and month views" },
+  { pattern = '^fix savings depsit.*$', replace = "fix(transactions): fix savings deposit handling" },
+  { pattern = '^fix: improve calendar.*$', replace = "fix(calendar): improve calendar cell layout and future date handling" },
+  
+  # Refactors
+  { pattern = '^Refactor calendar.*$', replace = "refactor(calendar): show two aggregate cards per day (income + expenses)" },
+  
+  # Chores
+  { pattern = '^Clean up unused code.*$', replace = "chore: clean up unused code and legacy files" },
+  { pattern = '^chore: remove redundant config folders.*$', replace = "chore: remove redundant config folders and unused components" },
+  { pattern = '^chore: remove GitHub Actions workflow.*$', replace = "chore(ci): remove GitHub Actions workflow, use Vercel built-in Git integration" },
+  { pattern = '^minor tweaks$', replace = "chore: minor tweaks" },
+  
+  # Merges
+  { pattern = '^Merge cleanup:.*$', replace = "chore: merge cleanup - remove redundant config folders" },
+  { pattern = '^Merge fix:.*$', replace = "fix(calendar): merge fix - calendar cell layout improvements" },
+]
+
+commit_parsers = [
+  { message = "^feat", group = "Features" },
+  { message = "^fix", group = "Bug Fixes" },
+  { message = "^docs", group = "Documentation" },
+  { message = "^perf", group = "Performance" },
+  { message = "^refactor", group = "Refactor" },
+  { message = "^style", group = "Styling" },
+  { message = "^test", group = "Testing" },
+  { message = "^chore\\(release\\):", skip = true },
+  { message = "^chore\\(deps\\)", skip = true },
+  { message = "^chore", group = "Miscellaneous Tasks" },
+  { message = "^ci", group = "Continuous Integration" },
+  { message = "^build", group = "Build System" },
+  { message = "^revert", group = "Revert" },
+  { message = "^Merge pull request", group = "Pull Requests" },
+  { message = "^Merge branch", skip = true },
+  # Catch all other commits
+  { message = ".*", group = "Other Changes" },
+]
+
+protect_breaking_commits = false
+filter_commits = false
+tag_pattern = "v[0-9]*"
+skip_tags = ""
+ignore_tags = ""
+topo_order = false
+sort_commits = "oldest"
+
+[remote.github]
+owner = "Quisharoo"
+repo = "revolut-calendar"
+

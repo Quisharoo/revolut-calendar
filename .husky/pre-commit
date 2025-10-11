@@ -1,0 +1,8 @@
+npm test
+
+# Generate changelog; block commit if it fails
+npm run changelog
+if [ "$?" -ne 0 ]; then
+  echo "Changelog generation failed. Aborting commit."
+  exit 1
+fi
