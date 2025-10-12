@@ -19,6 +19,7 @@ All notable changes to this project will be documented in this file.
 - Remove GitHub Actions workflow, use Vercel's built-in Git integration
 - Remove GitHub Actions workflow, use Vercel's built-in Git integration
 - Chore(config) adding git commit linting
+- **husky**: Run changelog in pre-commit
 
 ### Pull Requests
 
