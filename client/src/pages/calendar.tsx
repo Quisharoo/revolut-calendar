@@ -6,7 +6,14 @@ import InsightsSidebar from "@/components/InsightsSidebar";
 import FilterPanel, { type FilterState } from "@/components/FilterPanel";
 import DayDetailPanel from "@/components/DayDetailPanel";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useToast } from "@/hooks/use-toast";
@@ -219,6 +226,13 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
                     </Button>
                   </SheetTrigger>
                   <SheetContent side="right" className="w-80">
+                    <SheetHeader>
+                      <SheetTitle>Filters &amp; insights</SheetTitle>
+                      <SheetDescription>
+                        Adjust the filters or review insights for the current
+                        month.
+                      </SheetDescription>
+                    </SheetHeader>
                     <div className="mt-6 space-y-6">
                       <FilterPanel
                         filters={filters}
@@ -307,6 +321,12 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
       {selectedDate && !isDesktop && (
         <Sheet open={selectedDate !== null} onOpenChange={(open) => !open && handleClosePanel()}>
           <SheetContent side="right" className="w-full sm:max-w-md p-0">
+            <SheetHeader className="sr-only">
+              <SheetTitle>Selected day details</SheetTitle>
+              <SheetDescription>
+                Transaction breakdown for the chosen calendar day.
+              </SheetDescription>
+            </SheetHeader>
             <DayDetailPanel
               date={selectedDate}
               transactions={selectedDayTransactions}
