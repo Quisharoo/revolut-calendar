@@ -1,0 +1,123 @@
+import type { ParsedTransaction } from "@shared/schema";
+import { DEFAULT_CURRENCY_SYMBOL, formatCurrency } from "@/lib/transactionUtils";
+
+const CALENDAR_PROD_ID = "-//TransactionCalendar//Recurring Export//EN";
+
+const ensureTwoDigits = (value: number) => value.toString().padStart(2, "0");
+
+const formatDateAsDateValue = (date: Date) => {
+  const year = date.getFullYear();
+  const month = ensureTwoDigits(date.getMonth() + 1);
+  const day = ensureTwoDigits(date.getDate());
+  return `${year}${month}${day}`;
+};
+
+const formatDateAsUtcTimestamp = (date: Date) => {
+  const year = date.getUTCFullYear();
+  const month = ensureTwoDigits(date.getUTCMonth() + 1);
+  const day = ensureTwoDigits(date.getUTCDate());
+  const hours = ensureTwoDigits(date.getUTCHours());
+  const minutes = ensureTwoDigits(date.getUTCMinutes());
+  const seconds = ensureTwoDigits(date.getUTCSeconds());
+  return `${year}${month}${day}T${hours}${minutes}${seconds}Z`;
+};
+
+const escapeIcsText = (value: string) =>
+  value.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\n/g, "\\n");
+
+const addDays = (date: Date, days: number) => {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result;
+};
+
+const buildMonthlyRule = (date: Date) => {
+  const day = date.getDate();
+  return `FREQ=MONTHLY;INTERVAL=1;BYMONTHDAY=${day}`;
+};
+
+const resolveSummary = (transaction: ParsedTransaction) => {
+  const label = transaction.source?.name ?? transaction.description;
+  const formattedAmount = formatCurrency(
+    transaction.amount,
+    transaction.currencySymbol ?? DEFAULT_CURRENCY_SYMBOL
+  );
+  return `${label} (${formattedAmount})`;
+};
+
+const resolveDescription = (transaction: ParsedTransaction) => {
+  const direction = transaction.amount >= 0 ? "Income" : "Expense";
+  return `${direction} • ${transaction.description}`;
+};
+
+const buildUid = (transaction: ParsedTransaction) => {
+  const safeId = transaction.id.replace(/[^a-zA-Z0-9-]/g, "");
+  if (safeId.length > 0) {
+    return `${safeId}@transactioncalendar`;
+  }
+
+  const randomPart =
+    typeof globalThis.crypto !== "undefined" &&
+    typeof globalThis.crypto.randomUUID === "function"
+      ? globalThis.crypto.randomUUID()
+      : `anon-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
+  return `${randomPart}@transactioncalendar`;
+};
+
+export interface BuildRecurringIcsOptions {
+  monthDate: Date;
+  calendarName?: string;
+}
+
+export const buildRecurringIcs = (
+  transactions: ParsedTransaction[],
+  { monthDate, calendarName = "Recurring Transactions" }: BuildRecurringIcsOptions
+) => {
+  const targetYear = monthDate.getFullYear();
+  const targetMonth = monthDate.getMonth();
+
+  const recurringTransactions = transactions
+    .filter((transaction) => transaction.isRecurring)
+    .filter(
+      (transaction) =>
+        transaction.date.getFullYear() === targetYear &&
+        transaction.date.getMonth() === targetMonth
+    )
+    .sort((a, b) => a.date.getTime() - b.date.getTime());
+
+  const lines: string[] = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    `PRODID:${CALENDAR_PROD_ID}`,
+    `X-WR-CALNAME:${escapeIcsText(calendarName)}`,
+  ];
+
+  const exportTimestamp = formatDateAsUtcTimestamp(new Date());
+
+  recurringTransactions.forEach((transaction) => {
+    const startDate = new Date(
+      targetYear,
+      targetMonth,
+      transaction.date.getDate()
+    );
+    const endDate = addDays(startDate, 1);
+    const rrule = buildMonthlyRule(transaction.date);
+
+    lines.push(
+      "BEGIN:VEVENT",
+      `UID:${buildUid(transaction)}`,
+      `DTSTAMP:${exportTimestamp}`,
+      `SUMMARY:${escapeIcsText(resolveSummary(transaction))}`,
+      `DESCRIPTION:${escapeIcsText(resolveDescription(transaction))}`,
+      `DTSTART;VALUE=DATE:${formatDateAsDateValue(startDate)}`,
+      `DTEND;VALUE=DATE:${formatDateAsDateValue(endDate)}`,
+      `RRULE:${rrule}`,
+      "END:VEVENT"
+    );
+  });
+
+  lines.push("END:VCALENDAR");
+
+  return lines.join("\r\n");
+};
