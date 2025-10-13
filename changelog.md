@@ -21,6 +21,7 @@ All notable changes to this project will be documented in this file.
 - Chore(config) adding git commit linting
 - **husky**: Run changelog in pre-commit
 - **config**: Adding commit hooks for changelog
+- **changelog**: Regenerate changelog with git-cliff
 
 ### Pull Requests
 
