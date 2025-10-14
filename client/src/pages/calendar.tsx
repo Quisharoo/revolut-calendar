@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import type { ParsedTransaction } from "@shared/schema";
 import MonthNavigation from "@/components/MonthNavigation";
 import CalendarGrid from "@/components/CalendarGrid";
@@ -13,6 +13,10 @@ import { useToast } from "@/hooks/use-toast";
 import { buildRecurringIcs, filterRecurringTransactionsForMonth } from "@/lib/icsExport";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { Download, Filter } from "lucide-react";
+import {
+  detectCategoryAnomalies,
+  type CategoryAnomaly,
+} from "@/lib/anomalyDetection";
 
 interface CalendarPageProps {
   transactions: ParsedTransaction[];
@@ -31,9 +35,14 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
     maxAmount: "",
     searchText: "",
     recurringOnly: false,
+    surprisesOnly: false,
   });
   const isDesktop = useMediaQuery("(min-width: 1024px)");
   const { toast } = useToast();
+
+  const handleToggleSurprises = useCallback((nextValue: boolean) => {
+    setFilters((previous) => ({ ...previous, surprisesOnly: nextValue }));
+  }, []);
 
   const handlePrevMonth = () => {
     setCurrentDate(
@@ -61,22 +70,28 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
     setSelectedDayTransactions([]);
   };
 
-  const filteredTransactions = useMemo(() => {
-    const searchQuery = filters.searchText.trim().toLowerCase();
+  const {
+    categories,
+    minAmount,
+    maxAmount,
+    searchText,
+    recurringOnly,
+    surprisesOnly,
+  } = filters;
+
+  const baseFilteredTransactions = useMemo(() => {
+    const searchQuery = searchText.trim().toLowerCase();
     return transactions.filter((transaction) => {
       const sourceLabel = transaction.source?.name ?? transaction.broker ?? "";
-      if (
-        filters.categories.length > 0 &&
-        !filters.categories.includes(transaction.category)
-      ) {
+      if (categories.length > 0 && !categories.includes(transaction.category)) {
         return false;
       }
 
       const absAmount = Math.abs(transaction.amount);
-      if (filters.minAmount && absAmount < parseFloat(filters.minAmount)) {
+      if (minAmount && absAmount < parseFloat(minAmount)) {
         return false;
       }
-      if (filters.maxAmount && absAmount > parseFloat(filters.maxAmount)) {
+      if (maxAmount && absAmount > parseFloat(maxAmount)) {
         return false;
       }
 
@@ -93,13 +108,39 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
         }
       }
 
-      if (filters.recurringOnly && !transaction.isRecurring) {
+      if (recurringOnly && !transaction.isRecurring) {
         return false;
       }
 
       return true;
     });
-  }, [transactions, filters]);
+  }, [transactions, categories, minAmount, maxAmount, searchText, recurringOnly]);
+
+  const baseCurrentMonthTransactions = useMemo(() => {
+    return baseFilteredTransactions.filter(
+      (t) =>
+        t.date.getMonth() === currentDate.getMonth() &&
+        t.date.getFullYear() === currentDate.getFullYear()
+    );
+  }, [baseFilteredTransactions, currentDate]);
+
+  const surprises = useMemo<CategoryAnomaly[]>(() => {
+    return detectCategoryAnomalies(baseCurrentMonthTransactions);
+  }, [baseCurrentMonthTransactions]);
+
+  const filteredTransactions = useMemo(() => {
+    if (!surprisesOnly) {
+      return baseFilteredTransactions;
+    }
+
+    const surpriseIds = new Set(
+      surprises.map((anomaly) => anomaly.transaction.id)
+    );
+
+    return baseFilteredTransactions.filter((transaction) =>
+      surpriseIds.has(transaction.id)
+    );
+  }, [baseFilteredTransactions, surprisesOnly, surprises]);
 
   const currentMonthTransactions = useMemo(() => {
     return filteredTransactions.filter(
@@ -224,6 +265,9 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
                         <InsightsSidebar
                           transactions={currentMonthTransactions}
                           currentMonth={currentMonthName}
+                          surprises={surprises}
+                          isSurprisesOnly={surprisesOnly}
+                          onToggleSurprises={handleToggleSurprises}
                         />
                       </div>
                     </div>
@@ -293,6 +337,9 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
                 <InsightsSidebar
                   transactions={currentMonthTransactions}
                   currentMonth={currentMonthName}
+                  surprises={surprises}
+                  isSurprisesOnly={surprisesOnly}
+                  onToggleSurprises={handleToggleSurprises}
                 />
               </div>
             </ResizablePanel>

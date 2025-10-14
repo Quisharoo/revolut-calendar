@@ -1,10 +1,15 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import type { ComponentProps } from "react";
 import InsightsSidebar from "../InsightsSidebar";
 import type { ParsedTransaction } from "@shared/schema";
 
+const toEuros = (value: number) => Number(value.toFixed(2));
+
 describe("InsightsSidebar", () => {
-  const createTransaction = (overrides: Partial<ParsedTransaction>): ParsedTransaction => ({
+  const createTransaction = (
+    overrides: Partial<ParsedTransaction>
+  ): ParsedTransaction => ({
     id: "test-id",
     date: new Date("2024-10-01"),
     description: "Test Transaction",
@@ -16,13 +21,27 @@ describe("InsightsSidebar", () => {
     ...overrides,
   });
 
+  const renderSidebar = (
+    props?: Partial<ComponentProps<typeof InsightsSidebar>>
+  ) => {
+    const defaultProps: ComponentProps<typeof InsightsSidebar> = {
+      transactions: [],
+      currentMonth: "October",
+      surprises: [],
+      isSurprisesOnly: false,
+      onToggleSurprises: () => {},
+    };
+
+    render(<InsightsSidebar {...defaultProps} {...props} />);
+  };
+
   it("calculates totals correctly with only income transactions", () => {
     const transactions: ParsedTransaction[] = [
       createTransaction({ id: "1", amount: 1000, category: "Income" }),
       createTransaction({ id: "2", amount: 500, category: "Income" }),
     ];
 
-    render(<InsightsSidebar transactions={transactions} currentMonth="October" />);
+    renderSidebar({ transactions });
 
     expect(screen.getByTestId("text-net-total")).toHaveTextContent("+$1,500.00");
     expect(screen.getByTestId("text-total-income")).toHaveTextContent("+$1,500.00");
@@ -35,7 +54,7 @@ describe("InsightsSidebar", () => {
       createTransaction({ id: "2", amount: -200, category: "Expense" }),
     ];
 
-    render(<InsightsSidebar transactions={transactions} currentMonth="October" />);
+    renderSidebar({ transactions });
 
     expect(screen.getByTestId("text-net-total")).toHaveTextContent("-$1,000.00");
     expect(screen.getByTestId("text-total-income")).toHaveTextContent("+$0.00");
@@ -49,7 +68,7 @@ describe("InsightsSidebar", () => {
       createTransaction({ id: "3", amount: -300, category: "Expense" }),
     ];
 
-    render(<InsightsSidebar transactions={transactions} currentMonth="October" />);
+    renderSidebar({ transactions });
 
     expect(screen.getByTestId("text-net-total")).toHaveTextContent("+$2,900.00");
     expect(screen.getByTestId("text-total-income")).toHaveTextContent("+$5,000.00");
@@ -67,7 +86,7 @@ describe("InsightsSidebar", () => {
       }),
     ];
 
-    render(<InsightsSidebar transactions={transactions} currentMonth="October" />);
+    renderSidebar({ transactions });
 
     expect(screen.getByTestId("text-net-total")).toHaveTextContent("+$1,500.00");
     expect(screen.getByTestId("text-total-income")).toHaveTextContent("+$1,500.00");
@@ -86,7 +105,7 @@ describe("InsightsSidebar", () => {
       }),
     ];
 
-    render(<InsightsSidebar transactions={transactions} currentMonth="October" />);
+    renderSidebar({ transactions });
 
     expect(screen.getByTestId("text-net-total")).toHaveTextContent("-$1,000.00");
     expect(screen.getByTestId("text-total-income")).toHaveTextContent("+$0.00");
@@ -112,7 +131,7 @@ describe("InsightsSidebar", () => {
       }),
     ];
 
-    render(<InsightsSidebar transactions={transactions} currentMonth="October" />);
+    renderSidebar({ transactions });
 
     expect(screen.getByTestId("text-net-total")).toHaveTextContent("+$2,300.00");
     expect(screen.getByTestId("text-total-income")).toHaveTextContent("+$3,500.00");
@@ -139,10 +158,14 @@ describe("InsightsSidebar", () => {
       }),
     ];
 
-    render(<InsightsSidebar transactions={transactions} currentMonth="October" />);
+    renderSidebar({ transactions });
 
-    expect(screen.getByTestId("text-category-income-count")).toHaveTextContent("3 transactions");
-    expect(screen.getByTestId("text-category-expense-count")).toHaveTextContent("2 transactions");
+    expect(screen.getByTestId("text-category-income-count")).toHaveTextContent(
+      "3 transactions"
+    );
+    expect(screen.getByTestId("text-category-expense-count")).toHaveTextContent(
+      "2 transactions"
+    );
     expect(screen.queryByTestId("text-category-transfer-count")).toBeNull();
   });
 
@@ -153,7 +176,7 @@ describe("InsightsSidebar", () => {
       createTransaction({ id: "3", amount: -200, category: "Expense", isRecurring: false }),
     ];
 
-    render(<InsightsSidebar transactions={transactions} currentMonth="October" />);
+    renderSidebar({ transactions });
 
     expect(screen.getByTestId("text-recurring-count")).toHaveTextContent("2 items");
   });
@@ -163,14 +186,14 @@ describe("InsightsSidebar", () => {
       createTransaction({ id: "1", amount: 1000, category: "Income", currencySymbol: "€" }),
     ];
 
-    render(<InsightsSidebar transactions={transactions} currentMonth="October" />);
+    renderSidebar({ transactions });
 
     expect(screen.getByTestId("text-net-total")).toHaveTextContent("+€1,000.00");
     expect(screen.getByTestId("text-total-income")).toHaveTextContent("+€1,000.00");
   });
 
   it("uses default currency symbol when transactions array is empty", () => {
-    render(<InsightsSidebar transactions={[]} currentMonth="October" />);
+    renderSidebar();
 
     expect(screen.getByTestId("text-net-total")).toHaveTextContent("+$0.00");
   });
@@ -180,7 +203,7 @@ describe("InsightsSidebar", () => {
       createTransaction({ id: "1", amount: 1000, category: "Income" }),
     ];
 
-    render(<InsightsSidebar transactions={transactions} currentMonth="December" />);
+    renderSidebar({ transactions, currentMonth: "December" });
 
     expect(screen.getByTestId("heading-month")).toHaveTextContent("December Summary");
   });
@@ -196,9 +219,8 @@ describe("InsightsSidebar", () => {
       createTransaction({ id: "2", amount: 1000, category: "Income" }),
     ];
 
-    render(<InsightsSidebar transactions={transactions} currentMonth="October" />);
+    renderSidebar({ transactions });
 
-    // Zero amount should not affect income or expense
     expect(screen.getByTestId("text-net-total")).toHaveTextContent("+$1,000.00");
     expect(screen.getByTestId("text-total-income")).toHaveTextContent("+$1,000.00");
     expect(screen.getByTestId("text-total-expense")).toHaveTextContent("+$0.00");
@@ -223,10 +245,64 @@ describe("InsightsSidebar", () => {
       }),
     ];
 
-    render(<InsightsSidebar transactions={transactions} currentMonth="October" />);
+    renderSidebar({ transactions });
 
-    expect(screen.getByTestId("text-category-income-total")).toHaveTextContent("+$2,750.00");
-    expect(screen.getByTestId("text-category-expense-total")).toHaveTextContent("-$1,500.00");
+    expect(screen.getByTestId("text-category-income-total")).toHaveTextContent(
+      "+$2,750.00"
+    );
+    expect(screen.getByTestId("text-category-expense-total")).toHaveTextContent(
+      "-$1,500.00"
+    );
     expect(screen.queryByTestId("text-category-transfer-total")).toBeNull();
+  });
+
+  it("displays surprises list when anomalies are provided", () => {
+    const transaction = createTransaction({ id: "surprise-1", amount: 4200 });
+    const surprise = {
+      transaction,
+      category: transaction.category,
+      deviation: 3100,
+      score: 3.5,
+      median: 1100,
+      mad: toEuros(885.71),
+    };
+
+    renderSidebar({ transactions: [transaction], surprises: [surprise] });
+
+    expect(screen.getByTestId("heading-surprises")).toBeInTheDocument();
+    expect(screen.getByTestId("button-toggle-surprises")).toHaveTextContent(
+      "Show surprises"
+    );
+    expect(
+      screen.getByTestId("item-surprise-surprise-1")
+    ).toBeInTheDocument();
+  });
+
+  it("shows active toggle label when filtering to surprises", () => {
+    renderSidebar({ isSurprisesOnly: true });
+
+    expect(screen.getByTestId("button-toggle-surprises")).toHaveTextContent(
+      "Viewing surprises"
+    );
+  });
+
+  it("falls back to surprise currency when no transactions present", () => {
+    const transaction = createTransaction({
+      id: "surprise-euro",
+      amount: 2500,
+      currencySymbol: "€",
+    });
+    const surprise = {
+      transaction,
+      category: transaction.category,
+      deviation: 1500,
+      score: 3.2,
+      median: 1000,
+      mad: toEuros(468.75),
+    };
+
+    renderSidebar({ surprises: [surprise] });
+
+    expect(screen.getByTestId("text-net-total")).toHaveTextContent("+€0.00");
   });
 });

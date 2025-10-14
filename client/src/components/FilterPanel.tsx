@@ -11,6 +11,7 @@ export interface FilterState {
   maxAmount: string;
   searchText: string;
   recurringOnly: boolean;
+  surprisesOnly: boolean;
 }
 
 interface FilterPanelProps {
@@ -42,6 +43,7 @@ export default function FilterPanel({
       maxAmount: "",
       searchText: "",
       recurringOnly: false,
+      surprisesOnly: false,
     });
   };
 
@@ -50,7 +52,8 @@ export default function FilterPanel({
     filters.minAmount ||
     filters.maxAmount ||
     filters.searchText ||
-    filters.recurringOnly;
+    filters.recurringOnly ||
+    filters.surprisesOnly;
 
   return (
     <div className="space-y-6">
