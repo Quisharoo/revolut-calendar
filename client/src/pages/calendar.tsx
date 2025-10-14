@@ -9,11 +9,17 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import { Filter } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { buildRecurringIcs, filterRecurringTransactionsForMonth } from "@/lib/icsExport";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { Download, Filter } from "lucide-react";
 
 interface CalendarPageProps {
   transactions: ParsedTransaction[];
 }
+
+const EXPORT_TOOLTIP =
+  "Generates a single-month .ics calendar file with one all-day event for each recurring transaction detected this month. Each event is set up to repeat automatically in your calendar app as needed.";
 
 export default function CalendarPage({ transactions }: CalendarPageProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -27,6 +33,7 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
     recurringOnly: false,
   });
   const isDesktop = useMediaQuery("(min-width: 1024px)");
+  const { toast } = useToast();
 
   const handlePrevMonth = () => {
     setCurrentDate(
@@ -102,48 +109,127 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
     );
   }, [filteredTransactions, currentDate]);
 
+  const recurringTransactionsInMonth = useMemo(
+    () => filterRecurringTransactionsForMonth(transactions, currentDate),
+    [transactions, currentDate]
+  );
+
+  const handleExportRecurring = () => {
+    const monthLabel = currentDate.toLocaleDateString("en-US", {
+      month: "long",
+      year: "numeric",
+    });
+
+    if (recurringTransactionsInMonth.length === 0) {
+      toast({
+        title: "No recurring transactions",
+        description: `There are no recurring transactions in ${monthLabel}.`,
+      });
+      return;
+    }
+
+    try {
+      const icsContent = buildRecurringIcs(transactions, {
+        monthDate: currentDate,
+        calendarName: `Recurring Transactions - ${monthLabel}`,
+      });
+
+      const blob = new Blob([icsContent], {
+        type: "text/calendar;charset=utf-8",
+      });
+      const downloadUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const fileName = `recurring-transactions-${currentDate.getFullYear()}-${String(
+        currentDate.getMonth() + 1
+      ).padStart(2, "0")}.ics`;
+
+      link.href = downloadUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(downloadUrl), 0);
+
+      toast({
+        title: "Calendar exported",
+        description: `Recurring transactions for ${monthLabel} saved to ${fileName}.`,
+      });
+    } catch (error) {
+      console.error("Failed to export recurring transactions", error);
+      toast({
+        variant: "destructive",
+        title: "Export failed",
+        description: "Unable to create the calendar file. Please try again.",
+      });
+    }
+  };
+
   const currentMonthName = currentDate.toLocaleDateString("en-US", {
     month: "long",
   });
 
   return (
-    <div className="min-h-screen bg-background">
+    <TooltipProvider>
+      <div className="min-h-screen bg-background">
       <div className="container mx-auto p-4 lg:p-6">
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Mobile layout - no resizable panels */}
           <div className="lg:hidden flex-1 space-y-6">
-            <div className="flex items-center justify-between gap-4">
-              <MonthNavigation
-                currentDate={currentDate}
-                onPrevMonth={handlePrevMonth}
-                onNextMonth={handleNextMonth}
-                onToday={handleToday}
-              />
-              <Sheet>
-                <SheetTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    data-testid="button-mobile-filter"
-                  >
-                    <Filter className="w-4 h-4" />
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="right" className="w-80">
-                  <div className="mt-6 space-y-6">
-                    <FilterPanel
-                      filters={filters}
-                      onFiltersChange={setFilters}
-                    />
-                    <div className="border-t border-border pt-6">
-                      <InsightsSidebar
-                        transactions={currentMonthTransactions}
-                        currentMonth={currentMonthName}
+            <div className="flex items-center gap-2">
+              <div className="flex-1 min-w-0">
+                <MonthNavigation
+                  currentDate={currentDate}
+                  onPrevMonth={handlePrevMonth}
+                  onNextMonth={handleNextMonth}
+                  onToday={handleToday}
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleExportRecurring}
+                        disabled={recurringTransactionsInMonth.length === 0}
+                        data-testid="button-export-ics"
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        Export
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" align="end">
+                    {EXPORT_TOOLTIP}
+                  </TooltipContent>
+                </Tooltip>
+                <Sheet>
+                  <SheetTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      data-testid="button-mobile-filter"
+                    >
+                      <Filter className="w-4 h-4" />
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent side="right" className="w-80">
+                    <div className="mt-6 space-y-6">
+                      <FilterPanel
+                        filters={filters}
+                        onFiltersChange={setFilters}
                       />
+                      <div className="border-t border-border pt-6">
+                        <InsightsSidebar
+                          transactions={currentMonthTransactions}
+                          currentMonth={currentMonthName}
+                        />
+                      </div>
                     </div>
-                  </div>
-                </SheetContent>
-              </Sheet>
+                  </SheetContent>
+                </Sheet>
+              </div>
             </div>
 
             <CalendarGrid
@@ -161,12 +247,35 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
           >
             <ResizablePanel defaultSize={60} minSize={50}>
               <div className="h-full pr-3 space-y-6">
-                <MonthNavigation
-                  currentDate={currentDate}
-                  onPrevMonth={handlePrevMonth}
-                  onNextMonth={handleNextMonth}
-                  onToday={handleToday}
-                />
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex-1 min-w-[260px]">
+                    <MonthNavigation
+                      currentDate={currentDate}
+                      onPrevMonth={handlePrevMonth}
+                      onNextMonth={handleNextMonth}
+                      onToday={handleToday}
+                    />
+                  </div>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="inline-flex">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleExportRecurring}
+                          disabled={recurringTransactionsInMonth.length === 0}
+                          data-testid="button-export-ics"
+                        >
+                          <Download className="w-4 h-4 mr-2" />
+                          Export
+                        </Button>
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" align="end">
+                      {EXPORT_TOOLTIP}
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
                 <CalendarGrid
                   currentDate={currentDate}
                   transactions={filteredTransactions}
@@ -223,6 +332,7 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
           />
         </>
       )}
-    </div>
+      </div>
+    </TooltipProvider>
   );
 }

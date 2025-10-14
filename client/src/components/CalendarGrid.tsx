@@ -48,7 +48,7 @@ export default function CalendarGrid({
           const summary: DailySummary = summariesByDate.get(dateKey) || {
             dateKey,
             date,
-            totals: { income: 0, expense: 0, transfer: 0, net: 0 },
+            totals: { income: 0, expense: 0, net: 0 },
             recurringCount: 0,
             transactions: [],
             groups: [],
