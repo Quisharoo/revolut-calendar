@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import CalendarDayCell from "@/components/CalendarDayCell";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import type { ParsedTransaction } from "@shared/schema";
+import type { ParsedTransaction, TransactionCategory } from "@shared/schema";
 
 const sampleTransactions: ParsedTransaction[] = Array.from({ length: 12 }, (_, index) => ({
   id: `sample-${index}`,
@@ -34,6 +34,7 @@ vi.mock("@/components/CalendarGrid", () => ({
   default: (props: {
     onDayClick?: (date: Date, transactions: ParsedTransaction[]) => void;
     transactions: ParsedTransaction[];
+    overBudgetCategories?: Set<TransactionCategory>;
   }) => {
     calendarGridProps(props);
     const { onDayClick } = props;
@@ -52,6 +53,7 @@ vi.mock("@/components/CalendarGrid", () => ({
 }));
 
 beforeEach(() => {
+  window.localStorage.clear();
   calendarGridProps.mockClear();
   mediaQueryMock.mockReset();
   mediaQueryMock.mockReturnValue(true);
@@ -147,6 +149,9 @@ describe("CalendarPage filters", () => {
     await waitFor(() => {
       expect(calendarGridProps).toHaveBeenCalled();
     });
+
+    const latestCall = calendarGridProps.mock.calls.at(-1);
+    expect(latestCall && latestCall[0]?.overBudgetCategories).toBeInstanceOf(Set);
 
     const allInitialLists = calendarGridProps.mock.calls.map(([props]) =>
       (props as { transactions?: ParsedTransaction[] }).transactions ?? []
@@ -349,6 +354,34 @@ describe("CalendarDayCell summary display", () => {
     renderCell(transactions);
 
     expect(screen.getByTestId("day-net-total")).toHaveTextContent("+€3,200.00");
+  });
+
+  it("shows an over-budget badge when the month exceeds the expense limit", () => {
+    const transactions: ParsedTransaction[] = [
+      {
+        id: "expense-budget-1",
+        date,
+        description: "Dining",
+        amount: -120,
+        category: "Expense",
+        broker: "Restaurant",
+        source: { name: "Restaurant", type: "merchant" },
+        isRecurring: false,
+      },
+    ];
+
+    render(
+      <TooltipProvider>
+        <CalendarDayCell
+          date={date}
+          transactions={transactions}
+          isCurrentMonth
+          overBudgetCategories={new Set<TransactionCategory>(["Expense"])}
+        />
+      </TooltipProvider>
+    );
+
+    expect(screen.getByTestId("badge-over-budget")).toBeInTheDocument();
   });
 
   it("shows a recurring badge when recurring transactions are present", () => {

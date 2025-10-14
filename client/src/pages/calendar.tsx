@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
-import type { ParsedTransaction } from "@shared/schema";
+import type { ParsedTransaction, TransactionCategory } from "@shared/schema";
 import MonthNavigation from "@/components/MonthNavigation";
 import CalendarGrid from "@/components/CalendarGrid";
 import InsightsSidebar from "@/components/InsightsSidebar";
@@ -10,7 +10,12 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useToast } from "@/hooks/use-toast";
+import { useMonthlyBudgets } from "@/hooks/use-monthly-budgets";
 import { buildRecurringIcs, filterRecurringTransactionsForMonth } from "@/lib/icsExport";
+import {
+  calculateCategoryActuals,
+  calculateBudgetProgress,
+} from "@/lib/budgetUtils";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { Download, Filter } from "lucide-react";
 import RangeSummaryDrawer from "@/components/RangeSummaryDrawer";
@@ -43,6 +48,7 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
   });
   const isDesktop = useMediaQuery("(min-width: 1024px)");
   const { toast } = useToast();
+  const { budgets, saveBudgets, resetBudgets } = useMonthlyBudgets(currentDate);
 
   const handlePrevMonth = () => {
     setCurrentDate(
@@ -146,119 +152,125 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
     );
   }, [filteredTransactions, currentDate]);
 
+  const categoryActuals = useMemo(
+    () => calculateCategoryActuals(currentMonthTransactions),
+    [currentMonthTransactions]
+  );
+
+  const incomeActual = categoryActuals.Income;
+  const expenseActual = categoryActuals.Expense;
+
+  const incomeBudgetProgress = useMemo(
+    () => calculateBudgetProgress(incomeActual, budgets.Income),
+    [incomeActual, budgets.Income]
+  );
+
+  const expenseBudgetProgress = useMemo(
+    () => calculateBudgetProgress(expenseActual, budgets.Expense),
+    [expenseActual, budgets.Expense]
+  );
+
+  const budgetProgress = useMemo(
+    () => ({
+      Income: incomeBudgetProgress,
+      Expense: expenseBudgetProgress,
+    }),
+    [incomeBudgetProgress, expenseBudgetProgress]
+  );
+
+  const overBudgetCategories = useMemo(() => {
+    const set = new Set<TransactionCategory>();
+    if (expenseBudgetProgress.isOverBudget) {
+      set.add("Expense");
+    }
+    if (incomeBudgetProgress.isOverBudget) {
+      set.add("Income");
+    }
+    return set;
+  }, [expenseBudgetProgress.isOverBudget, incomeBudgetProgress.isOverBudget]);
+
   const recurringTransactionsInMonth = useMemo(
     () => filterRecurringTransactionsForMonth(transactions, currentDate),
     [transactions, currentDate]
   );
 
   const rangeTransactions = useMemo(
-    () => filterTransactionsInRange(filteredTransactions, selectedRange),
+    () => (selectedRange ? filterTransactionsInRange(filteredTransactions, selectedRange) : []),
     [filteredTransactions, selectedRange]
   );
 
-  const rangeSummary = useMemo(() => {
-    if (!selectedRange) {
-      return null;
-    }
-    return buildRangeSummary(rangeTransactions, selectedRange);
-  }, [rangeTransactions, selectedRange]);
-
-  const handleCopyRangeCsv = useCallback(async () => {
-    if (rangeTransactions.length === 0) {
-      return;
-    }
-
-    if (typeof navigator === "undefined" || !navigator.clipboard?.writeText) {
-      toast({
-        variant: "destructive",
-        title: "Clipboard unavailable",
-        description: "Copying CSV data is not supported in this environment.",
-      });
-      return;
-    }
-
-    try {
-      const csv = buildRangeCsv(rangeTransactions);
-      await navigator.clipboard.writeText(csv);
-      toast({
-        title: "Range copied",
-        description: `Copied ${rangeTransactions.length} transaction${
-          rangeTransactions.length !== 1 ? "s" : ""
-        } to the clipboard.`,
-      });
-    } catch (error) {
-      console.error("Failed to copy range CSV", error);
-      toast({
-        variant: "destructive",
-        title: "Copy failed",
-        description: "Unable to copy the CSV data. Please try again.",
-      });
-    }
-  }, [rangeTransactions, toast]);
+  const rangeSummary = useMemo(
+    () => (selectedRange ? buildRangeSummary(rangeTransactions, selectedRange) : null),
+    [rangeTransactions, selectedRange]
+  );
 
   const handleExportRecurring = () => {
-    const monthLabel = currentDate.toLocaleDateString("en-US", {
-      month: "long",
-      year: "numeric",
-    });
-
     if (recurringTransactionsInMonth.length === 0) {
       toast({
         title: "No recurring transactions",
-        description: `There are no recurring transactions in ${monthLabel}.`,
+        description: "There are no recurring transactions to export for this month.",
+        variant: "destructive",
       });
       return;
     }
 
-    try {
-      const icsContent = buildRecurringIcs(transactions, {
-        monthDate: currentDate,
-        calendarName: `Recurring Transactions - ${monthLabel}`,
-      });
+    const icsContent = buildRecurringIcs(recurringTransactionsInMonth, currentDate);
+    const blob = new Blob([icsContent], { type: "text/calendar" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    const monthYear = currentDate.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+    });
+    link.download = `recurring-transactions-${monthYear}.ics`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
 
-      const blob = new Blob([icsContent], {
-        type: "text/calendar;charset=utf-8",
-      });
-      const downloadUrl = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      const fileName = `recurring-transactions-${currentDate.getFullYear()}-${String(
-        currentDate.getMonth() + 1
-      ).padStart(2, "0")}.ics`;
-
-      link.href = downloadUrl;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      setTimeout(() => URL.revokeObjectURL(downloadUrl), 0);
-
-      toast({
-        title: "Calendar exported",
-        description: `Recurring transactions for ${monthLabel} saved to ${fileName}.`,
-      });
-    } catch (error) {
-      console.error("Failed to export recurring transactions", error);
-      toast({
-        variant: "destructive",
-        title: "Export failed",
-        description: "Unable to create the calendar file. Please try again.",
-      });
-    }
+    toast({
+      title: "Export successful",
+      description: `Exported ${recurringTransactionsInMonth.length} recurring transactions for ${monthYear}.`,
+    });
   };
 
-  const currentMonthName = currentDate.toLocaleDateString("en-US", {
-    month: "long",
-  });
+  const handleCopyRangeCsv = () => {
+    if (!rangeSummary || rangeTransactions.length === 0) {
+      toast({
+        title: "No transactions",
+        description: "There are no transactions in the selected range to export.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const csv = buildRangeCsv(rangeTransactions);
+    navigator.clipboard.writeText(csv).then(
+      () => {
+        toast({
+          title: "CSV copied",
+          description: `Copied ${rangeTransactions.length} transactions to clipboard.`,
+        });
+      },
+      () => {
+        toast({
+          title: "Copy failed",
+          description: "Failed to copy CSV to clipboard.",
+          variant: "destructive",
+        });
+      }
+    );
+  };
 
   return (
     <TooltipProvider>
-      <div className="min-h-screen bg-background">
-      <div className="container mx-auto p-4 lg:p-6">
-        <div className="flex flex-col lg:flex-row gap-6">
-          {/* Mobile layout - no resizable panels */}
-          <div className="lg:hidden flex-1 space-y-6">
-            <div className="flex items-center gap-2">
-              <div className="flex-1 min-w-0">
+      <div className="flex h-screen flex-col overflow-hidden">
+        <div className="flex-1 overflow-auto">
+          {/* Mobile layout - full width with sheet sidebar */}
+          <div className="lg:hidden flex h-full flex-col p-6 space-y-6">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex-1 min-w-[260px]">
                 <MonthNavigation
                   currentDate={currentDate}
                   onPrevMonth={handlePrevMonth}
@@ -288,12 +300,9 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
                 </Tooltip>
                 <Sheet>
                   <SheetTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      data-testid="button-mobile-filter"
-                    >
-                      <Filter className="w-4 h-4" />
+                    <Button variant="outline" size="sm">
+                      <Filter className="w-4 h-4 mr-2" />
+                      Filters
                     </Button>
                   </SheetTrigger>
                   <SheetContent side="right" className="w-80">
@@ -305,7 +314,11 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
                       <div className="border-t border-border pt-6">
                         <InsightsSidebar
                           transactions={currentMonthTransactions}
-                          currentMonth={currentMonthName}
+                          currentDate={currentDate}
+                          budgets={budgets}
+                          budgetProgress={budgetProgress}
+                          onBudgetsChange={saveBudgets}
+                          onResetBudgets={resetBudgets}
                         />
                       </div>
                     </div>
@@ -321,6 +334,7 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
               onDayClick={handleDayClick}
               selectedRange={selectedRange}
               onRangeSelect={handleRangeSelect}
+              overBudgetCategories={overBudgetCategories}
             />
           </div>
 
@@ -367,6 +381,7 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
                   onDayClick={handleDayClick}
                   selectedRange={selectedRange}
                   onRangeSelect={handleRangeSelect}
+                  overBudgetCategories={overBudgetCategories}
                 />
               </div>
             </ResizablePanel>
@@ -378,7 +393,11 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
                 <FilterPanel filters={filters} onFiltersChange={setFilters} />
                 <InsightsSidebar
                   transactions={currentMonthTransactions}
-                  currentMonth={currentMonthName}
+                  currentDate={currentDate}
+                  budgets={budgets}
+                  budgetProgress={budgetProgress}
+                  onBudgetsChange={saveBudgets}
+                  onResetBudgets={resetBudgets}
                 />
               </div>
             </ResizablePanel>
@@ -426,7 +445,6 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
         transactions={rangeTransactions}
         onCopyCsv={handleCopyRangeCsv}
       />
-      </div>
     </TooltipProvider>
   );
 }
