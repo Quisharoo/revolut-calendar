@@ -140,7 +140,7 @@ export default function CalendarDayCell({
         if (!isMouse && !isTouch && !isPen) {
           return;
         }
-        if (isMouse && event.button !== 0 && event.button !== -1) {
+        if (isMouse && event.button !== 0) {
           return;
         }
         onPointerUp?.(event);
