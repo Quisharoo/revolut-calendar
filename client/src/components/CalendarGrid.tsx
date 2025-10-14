@@ -187,7 +187,11 @@ export default function CalendarGrid({
               onPointerDown={(event) => {
                 const isMouse = event.pointerType === "mouse";
                 const isTouch = event.pointerType === "touch";
-                if ((isMouse && event.button !== 0) || (!isMouse && !isTouch)) {
+                const isPen = event.pointerType === "pen";
+                if (isMouse && event.button !== 0) {
+                  return;
+                }
+                if (!isMouse && !isTouch && !isPen) {
                   return;
                 }
                 if (isMouse) {
