@@ -1,10 +1,12 @@
 import { describe, it, expect } from "vitest";
 import type { ParsedTransaction } from "@shared/schema";
-import { buildRecurringIcs } from "../icsExport";
+import { buildRecurringIcs, filterRecurringTransactionsForMonth } from "../icsExport";
 
-const createTransaction = (overrides: Partial<ParsedTransaction>): ParsedTransaction => ({
+const createTransaction = (
+  overrides: Partial<ParsedTransaction> = {}
+): ParsedTransaction => ({
   id: "tx-1",
-  date: new Date(2024, 0, 5),
+  date: new Date(Date.UTC(2024, 0, 5, 12)),
   description: "Sample",
   amount: -50,
   category: "Expense",
@@ -149,5 +151,67 @@ describe("buildRecurringIcs", () => {
 
     const eventCount = (ics.match(/BEGIN:VEVENT/g) ?? []).length;
     expect(eventCount).toBe(1);
+  });
+});
+
+describe("filterRecurringTransactionsForMonth", () => {
+  it("returns recurring transactions that match the target month in UTC", () => {
+    const transactions = [
+      createTransaction({
+        id: "jan-recurring",
+        isRecurring: true,
+        date: new Date(Date.UTC(2024, 0, 10, 23)),
+      }),
+      createTransaction({
+        id: "jan-non",
+        isRecurring: false,
+        date: new Date(Date.UTC(2024, 0, 10)),
+      }),
+      createTransaction({
+        id: "feb-recurring",
+        isRecurring: true,
+        date: new Date(Date.UTC(2024, 1, 2)),
+      }),
+    ];
+
+    const result = filterRecurringTransactionsForMonth(transactions, new Date(Date.UTC(2024, 0, 1)));
+    expect(result.map((tx) => tx.id)).toEqual(["jan-recurring"]);
+  });
+});
+
+describe("uid generation", () => {
+  it("generates consistent UIDs for recurring transactions regardless of ID content", () => {
+    const transaction = createTransaction({
+      id: "###",
+      isRecurring: true,
+    });
+
+    const first = buildRecurringIcs([transaction], {
+      monthDate: new Date(Date.UTC(2024, 0, 1)),
+    });
+    const second = buildRecurringIcs([transaction], {
+      monthDate: new Date(Date.UTC(2024, 0, 1)),
+    });
+
+    const [firstUid] = extractUids(first);
+    const [secondUid] = extractUids(second);
+    expect(firstUid).toBeDefined();
+    expect(firstUid).toBe(secondUid);
+    expect(firstUid?.endsWith("@transactioncalendar")).toBe(true);
+  });
+
+  it("does not shift DTSTART across timezones", () => {
+    const transaction = createTransaction({
+      id: "tz-check",
+      isRecurring: true,
+      date: new Date("2024-03-01T00:30:00Z"),
+    });
+
+    const ics = buildRecurringIcs([transaction], {
+      monthDate: new Date(Date.UTC(2024, 2, 1)),
+    });
+
+    expect(ics).toContain("DTSTART;VALUE=DATE:20240301");
+    expect(ics).toContain("DTEND;VALUE=DATE:20240302");
   });
 });

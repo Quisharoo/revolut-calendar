@@ -16,7 +16,7 @@ body = """
     ### {{ group | striptags | trim | upper_first }}
     {% for commit in commits %}
         - {% if commit.scope %}**{{ commit.scope }}**: {% endif %}{{ commit.message | upper_first }}\
-          {% if commit.github.pr_number %} ([#{{ commit.github.pr_number }}](https://github.com/Quisharoo/revolut-calendar/pull/{{ commit.github.pr_number }})){% endif %}\
+          {% if commit.remote.pr_number %} ([#{{ commit.remote.pr_number }}](https://github.com/Quisharoo/revolut-calendar/pull/{{ commit.remote.pr_number }})){% endif %}\
     {% endfor %}
 {% endfor %}\n
 """
@@ -103,4 +103,3 @@ sort_commits = "oldest"
 [remote.github]
 owner = "Quisharoo"
 repo = "revolut-calendar"
-

@@ -10,7 +10,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useToast } from "@/hooks/use-toast";
-import { buildRecurringIcs } from "@/lib/icsExport";
+import { buildRecurringIcs, filterRecurringTransactionsForMonth } from "@/lib/icsExport";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { Download, Filter } from "lucide-react";
 
@@ -109,14 +109,10 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
     );
   }, [filteredTransactions, currentDate]);
 
-  const recurringTransactionsInMonth = useMemo(() => {
-    return transactions.filter(
-      (transaction) =>
-        transaction.isRecurring &&
-        transaction.date.getMonth() === currentDate.getMonth() &&
-        transaction.date.getFullYear() === currentDate.getFullYear()
-    );
-  }, [transactions, currentDate]);
+  const recurringTransactionsInMonth = useMemo(
+    () => filterRecurringTransactionsForMonth(transactions, currentDate),
+    [transactions, currentDate]
+  );
 
   const handleExportRecurring = () => {
     const monthLabel = currentDate.toLocaleDateString("en-US", {
