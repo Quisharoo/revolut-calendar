@@ -12,6 +12,9 @@ const createTransaction = (overrides: Partial<ParsedTransaction>): ParsedTransac
   ...overrides,
 });
 
+const extractUids = (ics: string) =>
+  (ics.match(/UID:(.+)/g) ?? []).map((line) => line.replace("UID:", "").trim());
+
 describe("buildRecurringIcs", () => {
   it("includes recurring transactions for the target month with monthly recurrence", () => {
     const transactions: ParsedTransaction[] = [
@@ -62,6 +65,42 @@ describe("buildRecurringIcs", () => {
     expect(ics).toContain("RRULE:FREQ=MONTHLY;INTERVAL=1;BYMONTHDAY=3");
   });
 
+  it("reuses a stable UID for the same recurring transaction across months", () => {
+    const januaryRent = createTransaction({
+      id: "rent-jan-uid",
+      description: "Rent Payment",
+      date: new Date(2024, 0, 3),
+      amount: -1800,
+      category: "Expense",
+      currencySymbol: "€",
+      isRecurring: true,
+    });
+
+    const februaryRent = createTransaction({
+      id: "rent-feb-uid",
+      description: "Rent Payment",
+      date: new Date(2024, 1, 3),
+      amount: -1800,
+      category: "Expense",
+      currencySymbol: "€",
+      isRecurring: true,
+    });
+
+    const januaryIcs = buildRecurringIcs([januaryRent], {
+      monthDate: new Date(2024, 0, 1),
+    });
+    const februaryIcs = buildRecurringIcs([februaryRent], {
+      monthDate: new Date(2024, 1, 1),
+    });
+
+    const januaryUids = extractUids(januaryIcs);
+    const februaryUids = extractUids(februaryIcs);
+
+    expect(januaryUids).toHaveLength(1);
+    expect(februaryUids).toHaveLength(1);
+    expect(januaryUids[0]).toBe(februaryUids[0]);
+  });
+
   it("omits events when no recurring transactions are present for the month", () => {
     const transactions: ParsedTransaction[] = [
       createTransaction({
@@ -81,5 +120,34 @@ describe("buildRecurringIcs", () => {
     const eventCount = (ics.match(/BEGIN:VEVENT/g) ?? []).length;
     expect(eventCount).toBe(0);
   });
-});
 
+  it("skips duplicate recurring entries that share the same recurrence key", () => {
+    const transactions: ParsedTransaction[] = [
+      createTransaction({
+        id: "gym-jan-a",
+        description: "Gym Membership",
+        date: new Date(2024, 0, 12),
+        amount: -45,
+        category: "Expense",
+        currencySymbol: "$",
+        isRecurring: true,
+      }),
+      createTransaction({
+        id: "gym-jan-b",
+        description: "Gym Membership",
+        date: new Date(2024, 0, 15),
+        amount: -45,
+        category: "Expense",
+        currencySymbol: "$",
+        isRecurring: true,
+      }),
+    ];
+
+    const ics = buildRecurringIcs(transactions, {
+      monthDate: new Date(2024, 0, 1),
+    });
+
+    const eventCount = (ics.match(/BEGIN:VEVENT/g) ?? []).length;
+    expect(eventCount).toBe(1);
+  });
+});

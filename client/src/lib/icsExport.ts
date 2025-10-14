@@ -50,7 +50,65 @@ const resolveDescription = (transaction: ParsedTransaction) => {
   return `${direction} • ${transaction.description}`;
 };
 
+const normalizeTextForKey = (value: string) =>
+  value
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .replace(/[^a-z0-9 ]/g, "");
+
+const toSlug = (value: string) =>
+  value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+
+const hashString = (value: string) => {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0).toString(36);
+};
+
+const buildRecurringKey = (transaction: ParsedTransaction) => {
+  const descriptorSource =
+    transaction.source?.identifier ??
+    transaction.source?.name ??
+    transaction.description;
+  const normalizedDescriptor = normalizeTextForKey(descriptorSource);
+  const normalizedDescription = normalizeTextForKey(transaction.description);
+  const descriptor =
+    normalizedDescriptor || normalizedDescription || "recurring-transaction";
+
+  const amount = Math.abs(transaction.amount).toFixed(2);
+  const currency = (transaction.currencySymbol ?? DEFAULT_CURRENCY_SYMBOL)
+    .trim()
+    .toLowerCase();
+  const direction = transaction.amount >= 0 ? "credit" : "debit";
+  const sourceType = transaction.source?.type ?? "unknown";
+
+  return [descriptor, amount, currency, direction, sourceType].join("|");
+};
+
+const buildRecurringUid = (transaction: ParsedTransaction) => {
+  const key = buildRecurringKey(transaction);
+  const slugCandidate =
+    toSlug(transaction.source?.name ?? transaction.description) || "recurring";
+  const slug = slugCandidate.slice(0, 48);
+  const hash = hashString(key);
+  const idPart = [slug, hash].filter(Boolean).join("-");
+  return `${idPart}@transactioncalendar`;
+};
+
 const buildUid = (transaction: ParsedTransaction) => {
+  if (transaction.isRecurring) {
+    return buildRecurringUid(transaction);
+  }
+
   const safeId = transaction.id.replace(/[^a-zA-Z0-9-]/g, "");
   if (safeId.length > 0) {
     return `${safeId}@transactioncalendar`;
@@ -95,7 +153,17 @@ export const buildRecurringIcs = (
 
   const exportTimestamp = formatDateAsUtcTimestamp(new Date());
 
+  const emittedRecurringKeys = new Set<string>();
+
   recurringTransactions.forEach((transaction) => {
+    if (transaction.isRecurring) {
+      const recurringKey = buildRecurringKey(transaction);
+      if (emittedRecurringKeys.has(recurringKey)) {
+        return;
+      }
+      emittedRecurringKeys.add(recurringKey);
+    }
+
     const startDate = new Date(
       targetYear,
       targetMonth,
