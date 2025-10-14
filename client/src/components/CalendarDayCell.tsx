@@ -24,6 +24,7 @@ interface CalendarDayCellProps {
   isInRange?: boolean;
   isRangeEdge?: boolean;
   isPreview?: boolean;
+  cellIndex?: number;
 }
 
 const netColorClass = (value: number) => {
@@ -49,6 +50,7 @@ export default function CalendarDayCell({
   isInRange = false,
   isRangeEdge = false,
   isPreview = false,
+  cellIndex,
 }: CalendarDayCellProps) {
   const resolvedSummary = useMemo<DailySummary>(() => {
     if (summary) {
@@ -105,6 +107,7 @@ export default function CalendarDayCell({
     <div
       role="button"
       tabIndex={0}
+      data-cell-index={cellIndex}
       className={cn(
         "flex h-full select-none flex-col border border-border bg-card transition-colors hover-elevate cursor-pointer",
         !isCurrentMonth && "opacity-40",
@@ -120,14 +123,12 @@ export default function CalendarDayCell({
       }}
       onPointerDown={(event) => {
         const isMouse = event.pointerType === "mouse";
-        const isTouch = event.pointerType === "touch";
-        const isPen = event.pointerType === "pen";
+        
+        // Only allow left-button mouse clicks
         if (isMouse && event.button !== 0) {
           return;
         }
-        if (!isMouse && !isTouch && !isPen) {
-          return;
-        }
+        
         onPointerDown?.(event);
       }}
       onPointerEnter={(event) => {
@@ -135,14 +136,12 @@ export default function CalendarDayCell({
       }}
       onPointerUp={(event) => {
         const isMouse = event.pointerType === "mouse";
-        const isTouch = event.pointerType === "touch";
-        const isPen = event.pointerType === "pen";
-        if (!isMouse && !isTouch && !isPen) {
-          return;
-        }
+        
+        // Only allow left-button mouse clicks
         if (isMouse && event.button !== 0) {
           return;
         }
+        
         onPointerUp?.(event);
       }}
       onKeyDown={(event) => {

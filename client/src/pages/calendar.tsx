@@ -72,6 +72,8 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
   };
 
   const handleRangeSelect = useCallback((range: DateRange) => {
+    console.log("[Calendar] handleRangeSelect called with range:", range);
+    
     const start = new Date(
       range.start.getFullYear(),
       range.start.getMonth(),
@@ -83,12 +85,14 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
       range.end.getDate()
     );
 
-    if (start.getTime() <= end.getTime()) {
-      setSelectedRange({ start, end });
-    } else {
-      setSelectedRange({ start: end, end: start });
-    }
+    const normalizedRange = start.getTime() <= end.getTime() 
+      ? { start, end } 
+      : { start: end, end: start };
 
+    console.log("[Calendar] Setting selectedRange:", normalizedRange);
+    console.log("[Calendar] Opening drawer: isRangeDrawerOpen = true");
+    
+    setSelectedRange(normalizedRange);
     setSelectedDate(null);
     setSelectedDayTransactions([]);
     setRangeDrawerOpen(true);

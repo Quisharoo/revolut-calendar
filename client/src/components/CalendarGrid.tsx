@@ -50,14 +50,24 @@ export default function CalendarGrid({
 
   const finalizeSelection = useCallback(
     (pointerId: number, finalIndex?: number) => {
+      console.log("[CalendarGrid] finalizeSelection called", { pointerId, finalIndex, dragState });
+      
       let range: { start: Date; end: Date } | null = null;
       setDragState((state) => {
         if (!state || state.pointerId !== pointerId) {
+          console.log("[CalendarGrid] No matching drag state, ignoring");
           return state;
         }
 
         const resolvedEndIndex = finalIndex ?? state.endIndex;
         const hasDragged = state.hasMoved || resolvedEndIndex !== state.startIndex;
+
+        console.log("[CalendarGrid] Selection details", {
+          hasDragged,
+          hasMoved: state.hasMoved,
+          startIndex: state.startIndex,
+          resolvedEndIndex,
+        });
 
         if (hasDragged) {
           const ordered = orderIndices(state.startIndex, resolvedEndIndex);
@@ -65,13 +75,19 @@ export default function CalendarGrid({
             start: monthDays[ordered.startIndex],
             end: monthDays[ordered.endIndex],
           };
+          console.log("[CalendarGrid] Range created:", range);
+        } else {
+          console.log("[CalendarGrid] No drag detected, not creating range");
         }
 
         return null;
       });
 
       if (range) {
+        console.log("[CalendarGrid] Calling onRangeSelect with range:", range);
         onRangeSelect?.(range);
+      } else {
+        console.log("[CalendarGrid] No range to report");
       }
     },
     [monthDays, onRangeSelect]
@@ -133,7 +149,32 @@ export default function CalendarGrid({
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-7 auto-rows-[minmax(180px,auto)]">
+      <div 
+        className="grid grid-cols-7 auto-rows-[minmax(180px,auto)]"
+        onPointerMove={(event) => {
+          if (!dragState || dragState.pointerId !== event.pointerId) {
+            return;
+          }
+
+          // Find which cell the pointer is over
+          const target = document.elementFromPoint(event.clientX, event.clientY);
+          const cellElement = target?.closest('[data-cell-index]');
+          
+          if (cellElement) {
+            const index = parseInt(cellElement.getAttribute('data-cell-index') || '0', 10);
+            
+            setDragState((state) => {
+              if (!state || state.endIndex === index) {
+                return state;
+              }
+              
+              console.log("[CalendarGrid] Drag moved to cell", index);
+              const hasMoved = state.hasMoved || index !== state.startIndex;
+              return { ...state, endIndex: index, hasMoved };
+            });
+          }
+        }}
+      >
         {monthDays.map((date, index) => {
           const dateKey = getLocalDateKey(date);
           const summary: DailySummary = summariesByDate.get(dateKey) || {
@@ -181,23 +222,33 @@ export default function CalendarGrid({
               isRangeEdge={isRangeEdge}
               isPreview={isPreview}
               disableClick={dragState?.hasMoved ?? false}
+              cellIndex={index}
               onSelect={(selectedDate, selectedSummary) =>
                 onDayClick?.(selectedDate, selectedSummary.transactions)
               }
               onPointerDown={(event) => {
                 const isMouse = event.pointerType === "mouse";
-                const isTouch = event.pointerType === "touch";
-                const isPen = event.pointerType === "pen";
+                
+                console.log("[CalendarGrid] onPointerDown", {
+                  index,
+                  pointerType: event.pointerType,
+                  button: event.button,
+                });
+                
+                // Only allow left-button mouse clicks
                 if (isMouse && event.button !== 0) {
+                  console.log("[CalendarGrid] Non-left button, ignoring");
                   return;
                 }
-                if (!isMouse && !isTouch && !isPen) {
-                  return;
-                }
+                
+                // Prevent default only for mouse to block text selection
+                // Don't prevent for touch to allow scrolling
                 if (isMouse) {
                   event.preventDefault();
                   event.stopPropagation();
                 }
+                
+                console.log("[CalendarGrid] Starting drag state");
                 setDragState({
                   startIndex: index,
                   endIndex: index,
@@ -205,25 +256,26 @@ export default function CalendarGrid({
                   hasMoved: false,
                 });
               }}
-              onPointerEnter={(event) => {
-                setDragState((state) => {
-                  if (!state || state.pointerId !== event.pointerId) {
-                    return state;
-                  }
-                  if (state.endIndex === index) {
-                    return state;
-                  }
-                  const hasMoved = state.hasMoved || index !== state.startIndex;
-                  return { ...state, endIndex: index, hasMoved };
-                });
-              }}
               onPointerUp={(event) => {
+                console.log("[CalendarGrid] onPointerUp", { index, pointerType: event.pointerType });
+                
                 if (!dragState || dragState.pointerId !== event.pointerId) {
+                  console.log("[CalendarGrid] No matching drag state on pointerUp");
                   return;
                 }
-                if (event.pointerType === "mouse") {
+                
+                const isMouse = event.pointerType === "mouse";
+                
+                // Only allow left-button mouse clicks
+                if (isMouse && event.button !== 0) {
+                  console.log("[CalendarGrid] Non-left button on pointerUp, ignoring");
+                  return;
+                }
+                
+                if (isMouse) {
                   event.preventDefault();
                 }
+                
                 finalizeSelection(event.pointerId, index);
               }}
             />
