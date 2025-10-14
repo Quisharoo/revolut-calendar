@@ -119,7 +119,9 @@ export default function CalendarDayCell({
         }
       }}
       onPointerDown={(event) => {
-        if (event.button !== 0 && event.pointerType !== "touch") {
+        const isMouse = event.pointerType === "mouse";
+        const isTouch = event.pointerType === "touch";
+        if ((isMouse && event.button !== 0) || (!isMouse && !isTouch)) {
           return;
         }
         onPointerDown?.(event);
@@ -128,7 +130,9 @@ export default function CalendarDayCell({
         onPointerEnter?.(event);
       }}
       onPointerUp={(event) => {
-        if (event.button !== 0 && event.pointerType !== "touch") {
+        const isMouse = event.pointerType === "mouse";
+        const isTouch = event.pointerType === "touch";
+        if ((isMouse && event.button !== 0) || (!isMouse && !isTouch)) {
           return;
         }
         onPointerUp?.(event);

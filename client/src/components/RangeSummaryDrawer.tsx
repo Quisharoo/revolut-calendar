@@ -40,7 +40,7 @@ export default function RangeSummaryDrawer({
     ? transactions.filter((transaction) => transaction.amount < 0).length
     : 0;
   const largestTransactionSource = summary?.largestTransaction
-    ? summary.largestTransaction.source?.name ?? summary.largestTransaction.broker ?? ""
+    ? summary.largestTransaction.source?.name ?? ""
     : "";
 
   return (

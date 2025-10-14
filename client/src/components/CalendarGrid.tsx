@@ -185,11 +185,15 @@ export default function CalendarGrid({
                 onDayClick?.(selectedDate, selectedSummary.transactions)
               }
               onPointerDown={(event) => {
-                if (event.button !== 0 && event.pointerType !== "touch") {
+                const isMouse = event.pointerType === "mouse";
+                const isTouch = event.pointerType === "touch";
+                if ((isMouse && event.button !== 0) || (!isMouse && !isTouch)) {
                   return;
                 }
-                event.preventDefault();
-                event.stopPropagation();
+                if (isMouse) {
+                  event.preventDefault();
+                  event.stopPropagation();
+                }
                 setDragState({
                   startIndex: index,
                   endIndex: index,
@@ -213,7 +217,9 @@ export default function CalendarGrid({
                 if (!dragState || dragState.pointerId !== event.pointerId) {
                   return;
                 }
-                event.preventDefault();
+                if (event.pointerType === "mouse") {
+                  event.preventDefault();
+                }
                 finalizeSelection(event.pointerId, index);
               }}
             />
