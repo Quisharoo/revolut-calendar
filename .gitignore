@@ -20,4 +20,5 @@ account-statement*.csv
 # .github/ - CI/CD workflows
 # .vscode/ - Editor settings
 
-./worktrees
+# Local git worktrees directory (not tracked)
+.worktrees/
