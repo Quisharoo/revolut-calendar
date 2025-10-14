@@ -19,3 +19,5 @@ account-statement*.csv
 # Keep these active config folders:
 # .github/ - CI/CD workflows
 # .vscode/ - Editor settings
+
+./worktrees
