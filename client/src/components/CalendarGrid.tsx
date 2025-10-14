@@ -1,3 +1,4 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ParsedTransaction } from "@shared/schema";
 import CalendarDayCell from "./CalendarDayCell";
 import {
@@ -13,21 +14,111 @@ interface CalendarGridProps {
   transactions: ParsedTransaction[];
   selectedDate?: Date | null;
   onDayClick?: (date: Date, transactions: ParsedTransaction[]) => void;
+  selectedRange?: { start: Date; end: Date } | null;
+  onRangeSelect?: (range: { start: Date; end: Date }) => void;
 }
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+type DragState = {
+  startIndex: number;
+  endIndex: number;
+  pointerId: number;
+  hasMoved: boolean;
+};
+
+const orderIndices = (a: number, b: number) =>
+  a <= b
+    ? { startIndex: a, endIndex: b }
+    : { startIndex: b, endIndex: a };
 
 export default function CalendarGrid({
   currentDate,
   transactions,
   selectedDate,
   onDayClick,
+  selectedRange,
+  onRangeSelect,
 }: CalendarGridProps) {
-  const monthDays = getMonthDays(
-    currentDate.getFullYear(),
-    currentDate.getMonth()
+  const monthDays = useMemo(
+    () => getMonthDays(currentDate.getFullYear(), currentDate.getMonth()),
+    [currentDate]
   );
   const summariesByDate = summarizeTransactionsByDate(transactions);
+
+  const [dragState, setDragState] = useState<DragState | null>(null);
+
+  const finalizeSelection = useCallback(
+    (pointerId: number, finalIndex?: number) => {
+      let range: { start: Date; end: Date } | null = null;
+      setDragState((state) => {
+        if (!state || state.pointerId !== pointerId) {
+          return state;
+        }
+
+        const resolvedEndIndex = finalIndex ?? state.endIndex;
+        const hasDragged = state.hasMoved || resolvedEndIndex !== state.startIndex;
+
+        if (hasDragged) {
+          const ordered = orderIndices(state.startIndex, resolvedEndIndex);
+          range = {
+            start: monthDays[ordered.startIndex],
+            end: monthDays[ordered.endIndex],
+          };
+        }
+
+        return null;
+      });
+
+      if (range) {
+        onRangeSelect?.(range);
+      }
+    },
+    [monthDays, onRangeSelect]
+  );
+
+  useEffect(() => {
+    if (!dragState) {
+      return;
+    }
+
+    const handlePointerCancel = (event: PointerEvent) => {
+      if (event.pointerId === dragState.pointerId) {
+        finalizeSelection(event.pointerId);
+      }
+    };
+
+    window.addEventListener("pointerup", handlePointerCancel);
+    window.addEventListener("pointercancel", handlePointerCancel);
+
+    return () => {
+      window.removeEventListener("pointerup", handlePointerCancel);
+      window.removeEventListener("pointercancel", handlePointerCancel);
+    };
+  }, [dragState, finalizeSelection]);
+
+  const selectedRangeIndices = useMemo(() => {
+    if (!selectedRange) {
+      return null;
+    }
+
+    const startIndex = monthDays.findIndex(
+      (date) => date.toDateString() === selectedRange.start.toDateString()
+    );
+    const endIndex = monthDays.findIndex(
+      (date) => date.toDateString() === selectedRange.end.toDateString()
+    );
+
+    if (startIndex === -1 || endIndex === -1) {
+      return null;
+    }
+
+    return orderIndices(startIndex, endIndex);
+  }, [monthDays, selectedRange]);
+
+  const previewRange = dragState
+    ? orderIndices(dragState.startIndex, dragState.endIndex)
+    : null;
 
   return (
     <div className="bg-card rounded-lg border border-card-border overflow-hidden">
@@ -56,6 +147,28 @@ export default function CalendarGrid({
           };
           const isCurrentMonth = date.getMonth() === currentDate.getMonth();
           const isSelected = selectedDate?.toDateString() === date.toDateString();
+          const isPreview = Boolean(
+            previewRange &&
+              index >= previewRange.startIndex &&
+              index <= previewRange.endIndex
+          );
+          const isConfirmedRange =
+            !dragState &&
+            Boolean(
+              selectedRangeIndices &&
+                index >= selectedRangeIndices.startIndex &&
+                index <= selectedRangeIndices.endIndex
+            );
+          const isInRange = isPreview || isConfirmedRange;
+          const isRangeEdge = Boolean(
+            (previewRange &&
+              (index === previewRange.startIndex ||
+                index === previewRange.endIndex)) ||
+              (!dragState &&
+                selectedRangeIndices &&
+                (index === selectedRangeIndices.startIndex ||
+                  index === selectedRangeIndices.endIndex))
+          );
 
           return (
             <CalendarDayCell
@@ -64,9 +177,45 @@ export default function CalendarGrid({
               summary={summary}
               isCurrentMonth={isCurrentMonth}
               isSelected={isSelected}
+              isInRange={isInRange}
+              isRangeEdge={isRangeEdge}
+              isPreview={isPreview}
+              disableClick={dragState?.hasMoved ?? false}
               onSelect={(selectedDate, selectedSummary) =>
                 onDayClick?.(selectedDate, selectedSummary.transactions)
               }
+              onPointerDown={(event) => {
+                if (event.button !== 0 && event.pointerType !== "touch") {
+                  return;
+                }
+                event.preventDefault();
+                event.stopPropagation();
+                setDragState({
+                  startIndex: index,
+                  endIndex: index,
+                  pointerId: event.pointerId,
+                  hasMoved: false,
+                });
+              }}
+              onPointerEnter={(event) => {
+                setDragState((state) => {
+                  if (!state || state.pointerId !== event.pointerId) {
+                    return state;
+                  }
+                  if (state.endIndex === index) {
+                    return state;
+                  }
+                  const hasMoved = state.hasMoved || index !== state.startIndex;
+                  return { ...state, endIndex: index, hasMoved };
+                });
+              }}
+              onPointerUp={(event) => {
+                if (!dragState || dragState.pointerId !== event.pointerId) {
+                  return;
+                }
+                event.preventDefault();
+                finalizeSelection(event.pointerId, index);
+              }}
             />
           );
         })}

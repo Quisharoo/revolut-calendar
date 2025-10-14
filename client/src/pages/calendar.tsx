@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import type { ParsedTransaction } from "@shared/schema";
 import MonthNavigation from "@/components/MonthNavigation";
 import CalendarGrid from "@/components/CalendarGrid";
@@ -13,6 +13,13 @@ import { useToast } from "@/hooks/use-toast";
 import { buildRecurringIcs, filterRecurringTransactionsForMonth } from "@/lib/icsExport";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { Download, Filter } from "lucide-react";
+import RangeSummaryDrawer from "@/components/RangeSummaryDrawer";
+import {
+  buildRangeCsv,
+  buildRangeSummary,
+  filterTransactionsInRange,
+  type DateRange,
+} from "@/lib/rangeSummary";
 
 interface CalendarPageProps {
   transactions: ParsedTransaction[];
@@ -25,6 +32,8 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedDayTransactions, setSelectedDayTransactions] = useState<ParsedTransaction[]>([]);
+  const [selectedRange, setSelectedRange] = useState<DateRange | null>(null);
+  const [isRangeDrawerOpen, setRangeDrawerOpen] = useState(false);
   const [filters, setFilters] = useState<FilterState>({
     categories: [],
     minAmount: "",
@@ -54,12 +63,36 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
   const handleDayClick = (date: Date, dayTransactions: ParsedTransaction[]) => {
     setSelectedDate(dayTransactions.length > 0 ? date : null);
     setSelectedDayTransactions(dayTransactions);
+    setRangeDrawerOpen(false);
   };
 
   const handleClosePanel = () => {
     setSelectedDate(null);
     setSelectedDayTransactions([]);
   };
+
+  const handleRangeSelect = useCallback((range: DateRange) => {
+    const start = new Date(
+      range.start.getFullYear(),
+      range.start.getMonth(),
+      range.start.getDate()
+    );
+    const end = new Date(
+      range.end.getFullYear(),
+      range.end.getMonth(),
+      range.end.getDate()
+    );
+
+    if (start.getTime() <= end.getTime()) {
+      setSelectedRange({ start, end });
+    } else {
+      setSelectedRange({ start: end, end: start });
+    }
+
+    setSelectedDate(null);
+    setSelectedDayTransactions([]);
+    setRangeDrawerOpen(true);
+  }, []);
 
   const filteredTransactions = useMemo(() => {
     const searchQuery = filters.searchText.trim().toLowerCase();
@@ -113,6 +146,51 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
     () => filterRecurringTransactionsForMonth(transactions, currentDate),
     [transactions, currentDate]
   );
+
+  const rangeTransactions = useMemo(
+    () => filterTransactionsInRange(filteredTransactions, selectedRange),
+    [filteredTransactions, selectedRange]
+  );
+
+  const rangeSummary = useMemo(() => {
+    if (!selectedRange) {
+      return null;
+    }
+    return buildRangeSummary(rangeTransactions, selectedRange);
+  }, [rangeTransactions, selectedRange]);
+
+  const handleCopyRangeCsv = useCallback(async () => {
+    if (rangeTransactions.length === 0) {
+      return;
+    }
+
+    if (typeof navigator === "undefined" || !navigator.clipboard?.writeText) {
+      toast({
+        variant: "destructive",
+        title: "Clipboard unavailable",
+        description: "Copying CSV data is not supported in this environment.",
+      });
+      return;
+    }
+
+    try {
+      const csv = buildRangeCsv(rangeTransactions);
+      await navigator.clipboard.writeText(csv);
+      toast({
+        title: "Range copied",
+        description: `Copied ${rangeTransactions.length} transaction${
+          rangeTransactions.length !== 1 ? "s" : ""
+        } to the clipboard.`,
+      });
+    } catch (error) {
+      console.error("Failed to copy range CSV", error);
+      toast({
+        variant: "destructive",
+        title: "Copy failed",
+        description: "Unable to copy the CSV data. Please try again.",
+      });
+    }
+  }, [rangeTransactions, toast]);
 
   const handleExportRecurring = () => {
     const monthLabel = currentDate.toLocaleDateString("en-US", {
@@ -237,6 +315,8 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
               transactions={filteredTransactions}
               selectedDate={selectedDate}
               onDayClick={handleDayClick}
+              selectedRange={selectedRange}
+              onRangeSelect={handleRangeSelect}
             />
           </div>
 
@@ -281,6 +361,8 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
                   transactions={filteredTransactions}
                   selectedDate={selectedDate}
                   onDayClick={handleDayClick}
+                  selectedRange={selectedRange}
+                  onRangeSelect={handleRangeSelect}
                 />
               </div>
             </ResizablePanel>
@@ -332,6 +414,14 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
           />
         </>
       )}
+      <RangeSummaryDrawer
+        open={isRangeDrawerOpen}
+        onOpenChange={setRangeDrawerOpen}
+        summary={rangeSummary}
+        range={selectedRange}
+        transactions={rangeTransactions}
+        onCopyCsv={handleCopyRangeCsv}
+      />
       </div>
     </TooltipProvider>
   );

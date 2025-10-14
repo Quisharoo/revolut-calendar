@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, type PointerEvent as ReactPointerEvent } from "react";
 import type { ParsedTransaction } from "@shared/schema";
 import {
   formatCurrency,
@@ -8,6 +8,7 @@ import {
   DEFAULT_CURRENCY_SYMBOL,
 } from "@/lib/transactionUtils";
 import { RepeatIcon, TrendingUp, TrendingDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface CalendarDayCellProps {
   date: Date;
@@ -16,6 +17,13 @@ interface CalendarDayCellProps {
   isCurrentMonth: boolean;
   isSelected?: boolean;
   onSelect?: (date: Date, summary: DailySummary) => void;
+  onPointerDown?: (event: ReactPointerEvent<HTMLDivElement>) => void;
+  onPointerEnter?: (event: ReactPointerEvent<HTMLDivElement>) => void;
+  onPointerUp?: (event: ReactPointerEvent<HTMLDivElement>) => void;
+  disableClick?: boolean;
+  isInRange?: boolean;
+  isRangeEdge?: boolean;
+  isPreview?: boolean;
 }
 
 const netColorClass = (value: number) => {
@@ -34,6 +42,13 @@ export default function CalendarDayCell({
   isCurrentMonth,
   isSelected = false,
   onSelect,
+  onPointerDown,
+  onPointerEnter,
+  onPointerUp,
+  disableClick = false,
+  isInRange = false,
+  isRangeEdge = false,
+  isPreview = false,
 }: CalendarDayCellProps) {
   const resolvedSummary = useMemo<DailySummary>(() => {
     if (summary) {
@@ -90,10 +105,34 @@ export default function CalendarDayCell({
     <div
       role="button"
       tabIndex={0}
-      className={`flex h-full flex-col border border-border bg-card transition-colors hover-elevate cursor-pointer ${
-        !isCurrentMonth ? "opacity-40" : ""
-      } ${isSelected ? "ring-2 ring-primary ring-inset" : ""}`}
-      onClick={() => onSelect?.(date, resolvedSummary)}
+      className={cn(
+        "flex h-full select-none flex-col border border-border bg-card transition-colors hover-elevate cursor-pointer",
+        !isCurrentMonth && "opacity-40",
+        isSelected && "ring-2 ring-primary ring-inset",
+        isInRange && "bg-primary/10",
+        isPreview && !isInRange && "bg-primary/5",
+        isRangeEdge && "ring-2 ring-primary ring-inset"
+      )}
+      onClick={() => {
+        if (!disableClick) {
+          onSelect?.(date, resolvedSummary);
+        }
+      }}
+      onPointerDown={(event) => {
+        if (event.button !== 0 && event.pointerType !== "touch") {
+          return;
+        }
+        onPointerDown?.(event);
+      }}
+      onPointerEnter={(event) => {
+        onPointerEnter?.(event);
+      }}
+      onPointerUp={(event) => {
+        if (event.button !== 0 && event.pointerType !== "touch") {
+          return;
+        }
+        onPointerUp?.(event);
+      }}
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
