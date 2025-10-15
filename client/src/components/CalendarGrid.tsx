@@ -143,9 +143,24 @@ export default function CalendarGrid({
             className={cn(
               "grid grid-cols-7 auto-rows-[minmax(220px,auto)] sm:auto-rows-[minmax(200px,auto)] lg:auto-rows-[minmax(180px,auto)]",
               dragState
-                ? "touch-none select-none"
-                : "touch-pan-x sm:touch-auto"
+                ? "select-none"
+                : ""
             )}
+            onPointerDown={(event) => {
+              if (event.pointerType === "touch") {
+                event.currentTarget.style.touchAction = "none";
+              }
+            }}
+            onPointerUp={(event) => {
+              if (event.pointerType === "touch") {
+                event.currentTarget.style.touchAction = "";
+              }
+            }}
+            onPointerCancel={(event) => {
+              if (event.pointerType === "touch") {
+                event.currentTarget.style.touchAction = "";
+              }
+            }}
             onPointerMove={(event) => {
               if (!dragState || dragState.pointerId !== event.pointerId) {
                 return;
