@@ -129,10 +129,12 @@ export default function CalendarDayCell({
           return;
         }
 
-        if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
-          event.currentTarget.releasePointerCapture?.(event.pointerId);
+        if (isMouse) {
+          if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+            event.currentTarget.releasePointerCapture?.(event.pointerId);
+          }
+          event.currentTarget.setPointerCapture?.(event.pointerId);
         }
-        event.currentTarget.setPointerCapture?.(event.pointerId);
 
         onPointerDown?.(event);
       }}
