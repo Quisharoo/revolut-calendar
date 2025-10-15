@@ -50,24 +50,15 @@ export default function CalendarGrid({
 
   const finalizeSelection = useCallback(
     (pointerId: number, finalIndex?: number) => {
-      console.log("[CalendarGrid] finalizeSelection called", { pointerId, finalIndex, dragState });
       
       let range: { start: Date; end: Date } | null = null;
       setDragState((state) => {
         if (!state || state.pointerId !== pointerId) {
-          console.log("[CalendarGrid] No matching drag state, ignoring");
           return state;
         }
 
         const resolvedEndIndex = finalIndex ?? state.endIndex;
         const hasDragged = state.hasMoved || resolvedEndIndex !== state.startIndex;
-
-        console.log("[CalendarGrid] Selection details", {
-          hasDragged,
-          hasMoved: state.hasMoved,
-          startIndex: state.startIndex,
-          resolvedEndIndex,
-        });
 
         if (hasDragged) {
           const ordered = orderIndices(state.startIndex, resolvedEndIndex);
@@ -75,19 +66,13 @@ export default function CalendarGrid({
             start: monthDays[ordered.startIndex],
             end: monthDays[ordered.endIndex],
           };
-          console.log("[CalendarGrid] Range created:", range);
-        } else {
-          console.log("[CalendarGrid] No drag detected, not creating range");
         }
 
         return null;
       });
 
       if (range) {
-        console.log("[CalendarGrid] Calling onRangeSelect with range:", range);
         onRangeSelect?.(range);
-      } else {
-        console.log("[CalendarGrid] No range to report");
       }
     },
     [monthDays, onRangeSelect]
