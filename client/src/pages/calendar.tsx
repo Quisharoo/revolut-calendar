@@ -253,86 +253,15 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
   return (
     <TooltipProvider>
       <div className="min-h-screen bg-background">
-      <div className="container mx-auto p-4 lg:p-6">
-        <div className="flex flex-col lg:flex-row gap-6">
-          {/* Mobile layout - no resizable panels */}
-          <div className="lg:hidden flex-1 space-y-6">
-            <div className="flex items-center gap-2">
-              <div className="flex-1 min-w-0">
-                <MonthNavigation
-                  currentDate={currentDate}
-                  onPrevMonth={handlePrevMonth}
-                  onNextMonth={handleNextMonth}
-                  onToday={handleToday}
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="inline-flex">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleExportRecurring}
-                        disabled={recurringTransactionsInMonth.length === 0}
-                        data-testid="button-export-ics"
-                      >
-                        <Download className="w-4 h-4 mr-2" />
-                        Export
-                      </Button>
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" align="end">
-                    {EXPORT_TOOLTIP}
-                  </TooltipContent>
-                </Tooltip>
-                <Sheet>
-                  <SheetTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      data-testid="button-mobile-filter"
-                    >
-                      <Filter className="w-4 h-4" />
-                    </Button>
-                  </SheetTrigger>
-                  <SheetContent side="right" className="w-80">
-                    <div className="mt-6 space-y-6">
-                      <FilterPanel
-                        filters={filters}
-                        onFiltersChange={setFilters}
-                      />
-                      <div className="border-t border-border pt-6">
-                        <InsightsSidebar
-                          transactions={currentMonthTransactions}
-                          currentMonth={currentMonthName}
-                        />
-                      </div>
-                    </div>
-                  </SheetContent>
-                </Sheet>
-              </div>
-            </div>
-
-            <CalendarGrid
-              currentDate={currentDate}
-              transactions={filteredTransactions}
-              selectedDate={selectedDate}
-              onDayClick={handleDayClick}
-              selectedRange={selectedRange}
-              onRangeSelect={handleRangeSelect}
-            />
-          </div>
-
-          {/* Desktop layout - with resizable panels */}
-          <ResizablePanelGroup
-            direction="horizontal"
-            className="hidden lg:flex flex-1"
-          >
-            <ResizablePanel defaultSize={60} minSize={50}>
-              <div className="h-full pr-3 space-y-6">
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="flex-1 min-w-[260px]">
+        <div className="container mx-auto p-4 lg:p-6">
+          <div className="flex flex-col gap-6 lg:flex-row">
+            {/* Only render the mobile layout when below the desktop breakpoint.
+                PanelGroup applies an inline display value so relying solely on utility
+                classes like `hidden` can leave it visible in Safari/iOS. */}
+            {!isDesktop ? (
+              <div className="flex-1 space-y-6">
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 min-w-0">
                     <MonthNavigation
                       currentDate={currentDate}
                       onPrevMonth={handlePrevMonth}
@@ -340,26 +269,54 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
                       onToday={handleToday}
                     />
                   </div>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span className="inline-flex">
+                  <div className="flex items-center gap-2">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="inline-flex">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleExportRecurring}
+                            disabled={recurringTransactionsInMonth.length === 0}
+                            data-testid="button-export-ics"
+                          >
+                            <Download className="w-4 h-4 mr-2" />
+                            Export
+                          </Button>
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" align="end">
+                        {EXPORT_TOOLTIP}
+                      </TooltipContent>
+                    </Tooltip>
+                    <Sheet>
+                      <SheetTrigger asChild>
                         <Button
                           variant="outline"
-                          size="sm"
-                          onClick={handleExportRecurring}
-                          disabled={recurringTransactionsInMonth.length === 0}
-                          data-testid="button-export-ics"
+                          size="icon"
+                          data-testid="button-mobile-filter"
                         >
-                          <Download className="w-4 h-4 mr-2" />
-                          Export
+                          <Filter className="w-4 h-4" />
                         </Button>
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom" align="end">
-                      {EXPORT_TOOLTIP}
-                    </TooltipContent>
-                  </Tooltip>
+                      </SheetTrigger>
+                      <SheetContent side="right" className="w-80">
+                        <div className="mt-6 space-y-6">
+                          <FilterPanel
+                            filters={filters}
+                            onFiltersChange={setFilters}
+                          />
+                          <div className="border-t border-border pt-6">
+                            <InsightsSidebar
+                              transactions={currentMonthTransactions}
+                              currentMonth={currentMonthName}
+                            />
+                          </div>
+                        </div>
+                      </SheetContent>
+                    </Sheet>
+                  </div>
                 </div>
+
                 <CalendarGrid
                   currentDate={currentDate}
                   transactions={filteredTransactions}
@@ -369,22 +326,65 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
                   onRangeSelect={handleRangeSelect}
                 />
               </div>
-            </ResizablePanel>
+            ) : (
+              <ResizablePanelGroup direction="horizontal" className="flex-1">
+                <ResizablePanel defaultSize={60} minSize={50}>
+                  <div className="h-full pr-3 space-y-6">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex-1 min-w-[260px]">
+                        <MonthNavigation
+                          currentDate={currentDate}
+                          onPrevMonth={handlePrevMonth}
+                          onNextMonth={handleNextMonth}
+                          onToday={handleToday}
+                        />
+                      </div>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="inline-flex">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={handleExportRecurring}
+                              disabled={recurringTransactionsInMonth.length === 0}
+                              data-testid="button-export-ics"
+                            >
+                              <Download className="w-4 h-4 mr-2" />
+                              Export
+                            </Button>
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" align="end">
+                          {EXPORT_TOOLTIP}
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                    <CalendarGrid
+                      currentDate={currentDate}
+                      transactions={filteredTransactions}
+                      selectedDate={selectedDate}
+                      onDayClick={handleDayClick}
+                      selectedRange={selectedRange}
+                      onRangeSelect={handleRangeSelect}
+                    />
+                  </div>
+                </ResizablePanel>
 
-            <ResizableHandle withHandle />
+                <ResizableHandle withHandle />
 
-            <ResizablePanel defaultSize={10} minSize={20} maxSize={40}>
-              <div className="h-full pl-3 space-y-6 overflow-y-auto">
-                <FilterPanel filters={filters} onFiltersChange={setFilters} />
-                <InsightsSidebar
-                  transactions={currentMonthTransactions}
-                  currentMonth={currentMonthName}
-                />
-              </div>
-            </ResizablePanel>
-          </ResizablePanelGroup>
+                <ResizablePanel defaultSize={10} minSize={20} maxSize={40}>
+                  <div className="h-full pl-3 space-y-6 overflow-y-auto">
+                    <FilterPanel filters={filters} onFiltersChange={setFilters} />
+                    <InsightsSidebar
+                      transactions={currentMonthTransactions}
+                      currentMonth={currentMonthName}
+                    />
+                  </div>
+                </ResizablePanel>
+              </ResizablePanelGroup>
+            )}
+          </div>
         </div>
-      </div>
 
       {selectedDate && !isDesktop && (
         <Sheet open={selectedDate !== null} onOpenChange={(open) => !open && handleClosePanel()}>
