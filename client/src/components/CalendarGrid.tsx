@@ -122,21 +122,23 @@ export default function CalendarGrid({
     : null;
 
   return (
-    <div className="bg-card rounded-lg border border-card-border overflow-hidden">
-      <div className="grid grid-cols-7 border-b border-border">
-        {WEEKDAYS.map((day) => (
-          <div
-            key={day}
-            className="p-3 text-center text-sm font-medium text-muted-foreground bg-muted/30"
-            data-testid={`header-weekday-${day}`}
-          >
-            {day}
+    <div className="bg-card rounded-lg border border-card-border">
+      <div className="overflow-x-auto">
+        <div className="min-w-[640px] md:min-w-0">
+          <div className="grid grid-cols-7 border-b border-border">
+            {WEEKDAYS.map((day) => (
+              <div
+                key={day}
+                className="bg-muted/30 p-3 text-center text-sm font-medium text-muted-foreground"
+                data-testid={`header-weekday-${day}`}
+              >
+                {day}
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
-      <div 
-        className="grid grid-cols-7 auto-rows-[minmax(180px,auto)]"
-        onPointerMove={(event) => {
+          <div
+            className="grid grid-cols-7 auto-rows-[minmax(220px,auto)] sm:auto-rows-[minmax(200px,auto)] lg:auto-rows-[minmax(180px,auto)]"
+            onPointerMove={(event) => {
           if (!dragState || dragState.pointerId !== event.pointerId) {
             return;
           }
@@ -266,6 +268,8 @@ export default function CalendarGrid({
             />
           );
         })}
+          </div>
+        </div>
       </div>
     </div>
   );
