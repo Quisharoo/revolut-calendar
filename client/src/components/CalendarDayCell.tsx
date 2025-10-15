@@ -152,8 +152,8 @@ export default function CalendarDayCell({
       }}
       data-testid={`cell-day-${date.getDate()}`}
     >
-      <div className="flex items-start justify-between gap-2 p-3 pb-1">
-        <div className="flex items-center gap-1.5 flex-wrap">
+      <div className="flex flex-wrap items-start justify-between gap-2 p-3 pb-1 sm:flex-nowrap">
+        <div className="flex flex-wrap items-center gap-1.5">
           <span
             className={`text-sm font-medium ${
               isToday
@@ -184,20 +184,20 @@ export default function CalendarDayCell({
         )}
       </div>
 
-      <div className="flex flex-1 flex-col px-3 pb-3">
+      <div className="flex flex-1 flex-col gap-2 px-3 pb-3">
         {transactionCount > 0 ? (
           <>
-            <div className="mt-1 flex flex-col gap-1.5">
-              <div className="flex w-full items-baseline justify-between gap-2">
+            <div className="mt-1 flex flex-col gap-2">
+              <div className="flex w-full flex-wrap items-baseline justify-between gap-2 sm:flex-nowrap">
                 <span
-                  className={`text-base font-bold tabular-nums tracking-tight leading-none whitespace-nowrap overflow-hidden text-ellipsis ${netClass}`}
+                  className={`text-base font-bold tabular-nums tracking-tight leading-tight overflow-hidden text-ellipsis sm:whitespace-nowrap ${netClass}`}
                   data-testid="day-net-total"
                 >
                   {formatCurrency(resolvedSummary.totals.net, resolvedSummary.currencySymbol)}
                 </span>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
                 <div className="flex items-center gap-1.5 rounded-full bg-primary/10 px-2 py-0.5">
                   <TrendingUp className="h-3 w-3 text-primary" />
                   <span className="text-xs font-medium text-primary">{incomeCount}</span>
