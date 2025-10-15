@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { ParsedTransaction } from "@shared/schema";
+import type { ParsedTransaction, TransactionCategory } from "@shared/schema";
 import CalendarDayCell from "./CalendarDayCell";
 import {
   getMonthDays,
@@ -16,6 +16,7 @@ interface CalendarGridProps {
   onDayClick?: (date: Date, transactions: ParsedTransaction[]) => void;
   selectedRange?: { start: Date; end: Date } | null;
   onRangeSelect?: (range: { start: Date; end: Date }) => void;
+  overBudgetCategories?: Set<TransactionCategory>;
 }
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -39,6 +40,7 @@ export default function CalendarGrid({
   onDayClick,
   selectedRange,
   onRangeSelect,
+  overBudgetCategories,
 }: CalendarGridProps) {
   const monthDays = useMemo(
     () => getMonthDays(currentDate.getFullYear(), currentDate.getMonth()),
@@ -263,6 +265,7 @@ export default function CalendarGrid({
                 
                 finalizeSelection(event.pointerId, index);
               }}
+              overBudgetCategories={overBudgetCategories}
             />
           );
         })}

@@ -1,7 +1,47 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import InsightsSidebar from "../InsightsSidebar";
 import type { ParsedTransaction } from "@shared/schema";
+import {
+  calculateBudgetProgress,
+  calculateCategoryActuals,
+  getDefaultMonthBudgets,
+  type MonthBudgets,
+} from "@/lib/budgetUtils";
+
+const BASE_DATE = new Date("2024-10-01T00:00:00Z");
+
+interface RenderOptions {
+  budgetsOverride?: Partial<MonthBudgets>;
+  currentDate?: Date;
+}
+
+const renderSidebar = (
+  transactions: ParsedTransaction[],
+  options: RenderOptions = {}
+) => {
+  const { budgetsOverride, currentDate = BASE_DATE } = options;
+  const budgets: MonthBudgets = {
+    ...getDefaultMonthBudgets(),
+    ...(budgetsOverride ?? {}),
+  };
+  const actuals = calculateCategoryActuals(transactions);
+  const budgetProgress = {
+    Income: calculateBudgetProgress(actuals.Income, budgets.Income),
+    Expense: calculateBudgetProgress(actuals.Expense, budgets.Expense),
+  };
+
+  return render(
+    <InsightsSidebar
+      transactions={transactions}
+      currentDate={currentDate}
+      budgets={budgets}
+      budgetProgress={budgetProgress}
+      onBudgetsChange={vi.fn()}
+      onResetBudgets={vi.fn()}
+    />
+  );
+};
 
 describe("InsightsSidebar", () => {
   const createTransaction = (overrides: Partial<ParsedTransaction>): ParsedTransaction => ({
@@ -22,7 +62,7 @@ describe("InsightsSidebar", () => {
       createTransaction({ id: "2", amount: 500, category: "Income" }),
     ];
 
-    render(<InsightsSidebar transactions={transactions} currentMonth="October" />);
+    renderSidebar(transactions);
 
     expect(screen.getByTestId("text-net-total")).toHaveTextContent("+$1,500.00");
     expect(screen.getByTestId("text-total-income")).toHaveTextContent("+$1,500.00");
@@ -35,7 +75,7 @@ describe("InsightsSidebar", () => {
       createTransaction({ id: "2", amount: -200, category: "Expense" }),
     ];
 
-    render(<InsightsSidebar transactions={transactions} currentMonth="October" />);
+    renderSidebar(transactions);
 
     expect(screen.getByTestId("text-net-total")).toHaveTextContent("-$1,000.00");
     expect(screen.getByTestId("text-total-income")).toHaveTextContent("+$0.00");
@@ -49,7 +89,7 @@ describe("InsightsSidebar", () => {
       createTransaction({ id: "3", amount: -300, category: "Expense" }),
     ];
 
-    render(<InsightsSidebar transactions={transactions} currentMonth="October" />);
+    renderSidebar(transactions);
 
     expect(screen.getByTestId("text-net-total")).toHaveTextContent("+$2,900.00");
     expect(screen.getByTestId("text-total-income")).toHaveTextContent("+$5,000.00");
@@ -67,7 +107,7 @@ describe("InsightsSidebar", () => {
       }),
     ];
 
-    render(<InsightsSidebar transactions={transactions} currentMonth="October" />);
+    renderSidebar(transactions);
 
     expect(screen.getByTestId("text-net-total")).toHaveTextContent("+$1,500.00");
     expect(screen.getByTestId("text-total-income")).toHaveTextContent("+$1,500.00");
@@ -86,7 +126,7 @@ describe("InsightsSidebar", () => {
       }),
     ];
 
-    render(<InsightsSidebar transactions={transactions} currentMonth="October" />);
+    renderSidebar(transactions);
 
     expect(screen.getByTestId("text-net-total")).toHaveTextContent("-$1,000.00");
     expect(screen.getByTestId("text-total-income")).toHaveTextContent("+$0.00");
@@ -112,7 +152,7 @@ describe("InsightsSidebar", () => {
       }),
     ];
 
-    render(<InsightsSidebar transactions={transactions} currentMonth="October" />);
+    renderSidebar(transactions);
 
     expect(screen.getByTestId("text-net-total")).toHaveTextContent("+$2,300.00");
     expect(screen.getByTestId("text-total-income")).toHaveTextContent("+$3,500.00");
@@ -139,7 +179,7 @@ describe("InsightsSidebar", () => {
       }),
     ];
 
-    render(<InsightsSidebar transactions={transactions} currentMonth="October" />);
+    renderSidebar(transactions);
 
     expect(screen.getByTestId("text-category-income-count")).toHaveTextContent("3 transactions");
     expect(screen.getByTestId("text-category-expense-count")).toHaveTextContent("2 transactions");
@@ -153,7 +193,7 @@ describe("InsightsSidebar", () => {
       createTransaction({ id: "3", amount: -200, category: "Expense", isRecurring: false }),
     ];
 
-    render(<InsightsSidebar transactions={transactions} currentMonth="October" />);
+    renderSidebar(transactions);
 
     expect(screen.getByTestId("text-recurring-count")).toHaveTextContent("2 items");
   });
@@ -163,14 +203,14 @@ describe("InsightsSidebar", () => {
       createTransaction({ id: "1", amount: 1000, category: "Income", currencySymbol: "€" }),
     ];
 
-    render(<InsightsSidebar transactions={transactions} currentMonth="October" />);
+    renderSidebar(transactions);
 
     expect(screen.getByTestId("text-net-total")).toHaveTextContent("+€1,000.00");
     expect(screen.getByTestId("text-total-income")).toHaveTextContent("+€1,000.00");
   });
 
   it("uses default currency symbol when transactions array is empty", () => {
-    render(<InsightsSidebar transactions={[]} currentMonth="October" />);
+    renderSidebar([]);
 
     expect(screen.getByTestId("text-net-total")).toHaveTextContent("+$0.00");
   });
@@ -180,7 +220,7 @@ describe("InsightsSidebar", () => {
       createTransaction({ id: "1", amount: 1000, category: "Income" }),
     ];
 
-    render(<InsightsSidebar transactions={transactions} currentMonth="December" />);
+    renderSidebar(transactions, { currentDate: new Date("2024-12-01T00:00:00Z") });
 
     expect(screen.getByTestId("heading-month")).toHaveTextContent("December Summary");
   });
@@ -196,7 +236,7 @@ describe("InsightsSidebar", () => {
       createTransaction({ id: "2", amount: 1000, category: "Income" }),
     ];
 
-    render(<InsightsSidebar transactions={transactions} currentMonth="October" />);
+    renderSidebar(transactions);
 
     // Zero amount should not affect income or expense
     expect(screen.getByTestId("text-net-total")).toHaveTextContent("+$1,000.00");
@@ -223,10 +263,47 @@ describe("InsightsSidebar", () => {
       }),
     ];
 
-    render(<InsightsSidebar transactions={transactions} currentMonth="October" />);
+    renderSidebar(transactions);
 
     expect(screen.getByTestId("text-category-income-total")).toHaveTextContent("+$2,750.00");
     expect(screen.getByTestId("text-category-expense-total")).toHaveTextContent("-$1,500.00");
     expect(screen.queryByTestId("text-category-transfer-total")).toBeNull();
+  });
+
+  it("shows a helper message when no budgets are configured", () => {
+    const transactions: ParsedTransaction[] = [
+      createTransaction({ id: "1", amount: 1500, category: "Income" }),
+    ];
+
+    renderSidebar(transactions);
+
+    expect(screen.getByTestId("budget-income-status")).toHaveTextContent(
+      "No budget set"
+    );
+    expect(screen.getByTestId("button-edit-budgets")).toBeInTheDocument();
+  });
+
+  it("renders remaining amount when under an expense budget", () => {
+    const transactions: ParsedTransaction[] = [
+      createTransaction({ id: "1", amount: -600, category: "Expense" }),
+      createTransaction({ id: "2", amount: -200, category: "Expense" }),
+    ];
+
+    renderSidebar(transactions, { budgetsOverride: { Expense: 1200 } });
+
+    expect(screen.getByTestId("budget-expense-details")).toBeInTheDocument();
+    expect(screen.getByText("$400.00 left")).toBeInTheDocument();
+  });
+
+  it("indicates when the expense budget is exceeded", () => {
+    const transactions: ParsedTransaction[] = [
+      createTransaction({ id: "1", amount: -500, category: "Expense" }),
+      createTransaction({ id: "2", amount: -450, category: "Expense" }),
+    ];
+
+    renderSidebar(transactions, { budgetsOverride: { Expense: 700 } });
+
+    expect(screen.getByTestId("budget-expense-details")).toBeInTheDocument();
+    expect(screen.getByText("Over by $250.00")).toBeInTheDocument();
   });
 });

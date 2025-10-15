@@ -1,5 +1,5 @@
 import { useMemo, type PointerEvent as ReactPointerEvent } from "react";
-import type { ParsedTransaction } from "@shared/schema";
+import type { ParsedTransaction, TransactionCategory } from "@shared/schema";
 import {
   formatCurrency,
   summarizeTransactionsByDate,
@@ -25,6 +25,7 @@ interface CalendarDayCellProps {
   isRangeEdge?: boolean;
   isPreview?: boolean;
   cellIndex?: number;
+  overBudgetCategories?: Set<TransactionCategory>;
 }
 
 const netColorClass = (value: number) => {
@@ -51,6 +52,7 @@ export default function CalendarDayCell({
   isRangeEdge = false,
   isPreview = false,
   cellIndex,
+  overBudgetCategories,
 }: CalendarDayCellProps) {
   const resolvedSummary = useMemo<DailySummary>(() => {
     if (summary) {
@@ -103,6 +105,12 @@ export default function CalendarDayCell({
   const netClass = netColorClass(resolvedSummary.totals.net);
   const incomeCount = resolvedSummary.transactions.filter((t) => t.amount > 0).length;
   const expenseCount = resolvedSummary.transactions.filter((t) => t.amount < 0).length;
+  const shouldShowOverBudgetBadge =
+    isCurrentMonth &&
+    overBudgetCategories !== undefined &&
+    resolvedSummary.transactions.some((transaction) =>
+      overBudgetCategories.has(transaction.category)
+    );
   return (
     <div
       role="button"
@@ -174,14 +182,24 @@ export default function CalendarDayCell({
             </span>
           )}
         </div>
-        {transactionCount > 0 && (
-          <span
-            className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
-            data-testid="text-transaction-count"
-          >
-            {transactionCount}
-          </span>
-        )}
+        <div className="flex flex-col items-end gap-1">
+          {shouldShowOverBudgetBadge && (
+            <span
+              className="rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:border-amber-200/30 dark:bg-amber-400/15 dark:text-amber-200"
+              data-testid="badge-over-budget"
+            >
+              Over budget
+            </span>
+          )}
+          {transactionCount > 0 && (
+            <span
+              className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
+              data-testid="text-transaction-count"
+            >
+              {transactionCount}
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-1 flex-col px-3 pb-3">
