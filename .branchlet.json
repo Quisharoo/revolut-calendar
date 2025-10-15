@@ -1,0 +1,8 @@
+{
+  "worktreeCopyPatterns": [".env*", ".vscode/**"],
+  "worktreeCopyIgnores": ["**/node_modules/**", "**/dist/**", "**/.git/**"],
+  "worktreePathTemplate": ".worktrees/$BRANCH_NAME",
+  "postCreateCmd": ["npm install", "npm run db:generate"],
+  "terminalCommand": "code .",
+  "deleteBranchWithWorktree": true
+}
