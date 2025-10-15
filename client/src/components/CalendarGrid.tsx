@@ -178,10 +178,12 @@ export default function CalendarGrid({
               const cellElement = target?.closest('[data-cell-index]');
 
               if (cellElement) {
-                const index = parseInt(
-                  cellElement.getAttribute("data-cell-index") || "0",
-                  10
-                );
+                const attr = cellElement.getAttribute("data-cell-index");
+                if (attr === null) {
+                  // Unexpected: cell matched selector but missing attribute
+                  return;
+                }
+                const index = parseInt(attr, 10);
 
                 setDragState((state) => {
                   if (!state || state.endIndex === index) {
