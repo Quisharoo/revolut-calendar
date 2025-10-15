@@ -6,11 +6,8 @@ import type {
 } from "@shared/schema";
 import { DEFAULT_CURRENCY_SYMBOL } from "./transactionUtils";
 import { applyRecurringDetection } from "./recurrenceDetection";
-
-const NORMALIZE_REGEX = /[^a-z0-9]/g;
-
-const normalizeHeader = (header: string) =>
-  header.trim().toLowerCase().replace(NORMALIZE_REGEX, "");
+import { normalizeHeader } from "./stringUtils";
+import { getTransactionDirection } from "./transactionFormatUtils";
 
 const detectDelimiter = (line: string) => {
   const commaCount = (line.match(/,/g) ?? []).length;
@@ -185,20 +182,13 @@ const inferCategory = (
   const product = productValue.toLowerCase();
 
   if (type.includes("refund") || product.includes("refund")) {
-    return amount >= 0 ? "Income" : "Expense";
+    return getTransactionDirection(amount);
   }
   if (type.includes("fee") || product.includes("fee")) {
     return "Expense";
   }
 
-  if (amount > 0) {
-    return "Income";
-  }
-  if (amount < 0) {
-    return "Expense";
-  }
-
-  return "Income";
+  return getTransactionDirection(amount);
 };
 
 const inferSourceType = (
