@@ -6,6 +6,7 @@
 /**
  * Normalizes text for use as a grouping key or identifier.
  * Converts to lowercase, removes special characters, normalizes whitespace.
+ * Preserves alphanumeric characters (a-z, 0-9) and spaces.
  * Used for comparing transaction descriptions and source names.
  * 
  * @param value - The text to normalize
@@ -13,6 +14,7 @@
  * 
  * @example
  * normalizeTextForKey("Netflix  Subscription!") // "netflix subscription"
+ * normalizeTextForKey("Test123") // "test123"
  */
 export const normalizeTextForKey = (value: string): string =>
   value
