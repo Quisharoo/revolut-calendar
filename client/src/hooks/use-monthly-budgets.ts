@@ -52,7 +52,8 @@ export const useMonthlyBudgets = (currentDate: Date) => {
     (updater: (previous: MonthBudgets) => MonthBudgets) => {
       setBudgets((previous) => {
         const normalizedPrevious = normalizeBudgets(previous);
-        const updated = normalizeBudgets(updater(normalizedPrevious));
+        const updatedUnnormalized = updater(normalizedPrevious);
+        const updated = normalizeBudgets(updatedUnnormalized);
         persistBudgets(monthKey, updated);
         return updated;
       });
