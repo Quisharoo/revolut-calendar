@@ -1,5 +1,16 @@
 import type { ParsedTransaction } from "@shared/schema";
 import { DEFAULT_CURRENCY_SYMBOL, formatCurrency } from "@/lib/transactionUtils";
+import {
+  normalizeTextForKey,
+  toSlug,
+  hashString,
+} from "@/lib/stringUtils";
+import {
+  formatAmountFixed,
+  getNormalizedCurrency,
+  getTransactionDirection,
+  getFlowDirection,
+} from "@/lib/transactionFormatUtils";
 
 const CALENDAR_PROD_ID = "-//TransactionCalendar//Recurring Export//EN";
 
@@ -46,32 +57,8 @@ const resolveSummary = (transaction: ParsedTransaction) => {
 };
 
 const resolveDescription = (transaction: ParsedTransaction) => {
-  const direction = transaction.amount >= 0 ? "Income" : "Expense";
+  const direction = getTransactionDirection(transaction.amount);
   return `${direction} • ${transaction.description}`;
-};
-
-const normalizeTextForKey = (value: string) =>
-  value
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, " ")
-    .replace(/[^a-z0-9 ]/g, "");
-
-const toSlug = (value: string) =>
-  value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
-
-const hashString = (value: string) => {
-  let hash = 0x811c9dc5;
-  for (let index = 0; index < value.length; index += 1) {
-    hash ^= value.charCodeAt(index);
-    hash = Math.imul(hash, 0x01000193);
-  }
-  return (hash >>> 0).toString(36);
 };
 
 const buildRecurringKey = (transaction: ParsedTransaction) => {
@@ -84,11 +71,9 @@ const buildRecurringKey = (transaction: ParsedTransaction) => {
   const descriptor =
     normalizedDescriptor || normalizedDescription || "recurring-transaction";
 
-  const amount = Math.abs(transaction.amount).toFixed(2);
-  const currency = (transaction.currencySymbol ?? DEFAULT_CURRENCY_SYMBOL)
-    .trim()
-    .toLowerCase();
-  const direction = transaction.amount >= 0 ? "credit" : "debit";
+  const amount = formatAmountFixed(transaction.amount);
+  const currency = getNormalizedCurrency(transaction);
+  const direction = getFlowDirection(transaction.amount);
   const sourceType = transaction.source?.type ?? "unknown";
 
   return [descriptor, amount, currency, direction, sourceType].join("|");
@@ -117,8 +102,8 @@ const buildUid = (transaction: ParsedTransaction) => {
   const fallbackSeed = [
     normalizeTextForKey(transaction.description) || "transaction",
     transaction.date.toISOString(),
-    Math.abs(transaction.amount).toFixed(2),
-    (transaction.currencySymbol ?? DEFAULT_CURRENCY_SYMBOL).trim().toLowerCase(),
+    formatAmountFixed(transaction.amount),
+    getNormalizedCurrency(transaction),
   ].join("|");
   const deterministicPart = hashString(fallbackSeed);
 

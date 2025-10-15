@@ -1,4 +1,6 @@
 import type { ParsedTransaction } from "@shared/schema";
+import { normalizeTextForKey } from "./stringUtils";
+import { getFlowType } from "./transactionFormatUtils";
 
 interface RecurrenceDetectionOptions {
   minDaysBetweenOccurrences: number;
@@ -16,19 +18,12 @@ const DEFAULT_OPTIONS: RecurrenceDetectionOptions = {
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
-const normalizeLabel = (label: string) =>
-  label
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim()
-    .replace(/\s+/g, " ");
-
 const toCents = (amount: number) => Math.round(amount * 100);
 
 const getGroupingKey = (transaction: ParsedTransaction) => {
   const label = transaction.source?.name ?? transaction.description;
-  const normalisedLabel = normalizeLabel(label);
-  const direction = transaction.amount >= 0 ? "in" : "out";
+  const normalisedLabel = normalizeTextForKey(label);
+  const direction = getFlowType(transaction.amount);
   return `${normalisedLabel}|${direction}`;
 };
 
