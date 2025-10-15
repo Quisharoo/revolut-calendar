@@ -33,14 +33,6 @@ export default function RangeSummaryDrawer({
   transactions,
   onCopyCsv,
 }: RangeSummaryDrawerProps) {
-  console.log("[RangeSummaryDrawer] Rendered with props:", {
-    open,
-    hasRange: !!range,
-    hasSummary: !!summary,
-    transactionCount: transactions.length,
-    range,
-    summary,
-  });
 
   const incomeCount = summary
     ? transactions.filter((transaction) => transaction.amount >= 0).length
