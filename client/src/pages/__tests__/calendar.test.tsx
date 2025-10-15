@@ -34,6 +34,7 @@ vi.mock("@/components/CalendarGrid", () => ({
   default: (props: {
     onDayClick?: (date: Date, transactions: ParsedTransaction[]) => void;
     transactions: ParsedTransaction[];
+    touchRangeEnabled?: boolean;
   }) => {
     calendarGridProps(props);
     const { onDayClick } = props;
