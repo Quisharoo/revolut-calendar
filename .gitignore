@@ -9,13 +9,57 @@ vite.config.ts.*
 # Account statements
 account-statement*.csv
 
+# Build & TypeScript artifacts
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+coverage/
+.nyc_output/
+
+# Test artifacts
+/test-results/
+/playwright-report/
+/playwright/.cache/
+
+# Runtime & temporary files
+*.log
+*.pid
+*.seed
+*.pid.lock
+*.tmp
+*.temp
+
+# Editor artifacts
+*.swp
+*.swo
+*~
+*.bak
+*.orig
+
 # IDE and editor config folders
 .codex/
 .cursor/
 .config/
 .local/
 .changelog.md
+.idea/
+*.code-workspace
+*.sublime-*
+
+# OS-specific files (additional coverage)
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Vite & build tool artifacts
+.vite/
+.turbo/
+
+# Environment and secrets
+.env.*
+!.env.example
 
 # Keep these active config folders:
 # .github/ - CI/CD workflows
 # .vscode/ - Editor settings
+# .specify/ - Speckit configuration
+# .branchlet.json - Worktree management
