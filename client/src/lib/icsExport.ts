@@ -32,7 +32,7 @@ const addUtcDays = (date: Date, days: number) => {
 };
 
 const buildMonthlyRule = (date: Date) => {
-  const day = date.getUTCDate();
+  const day = date.getDate();
   return `FREQ=MONTHLY;INTERVAL=1;BYMONTHDAY=${day}`;
 };
 
@@ -128,21 +128,21 @@ const buildUid = (transaction: ParsedTransaction) => {
 const createUtcDate = (year: number, monthIndex: number, day: number) =>
   new Date(Date.UTC(year, monthIndex, day));
 
-const getUtcYearMonth = (date: Date) => ({
-  year: date.getUTCFullYear(),
-  month: date.getUTCMonth(),
+const getCalendarYearMonth = (date: Date) => ({
+  year: date.getFullYear(),
+  month: date.getMonth(),
 });
 
-const isSameUtcMonth = (date: Date, target: { year: number; month: number }) =>
-  date.getUTCFullYear() === target.year && date.getUTCMonth() === target.month;
+const isSameCalendarMonth = (date: Date, target: { year: number; month: number }) =>
+  date.getFullYear() === target.year && date.getMonth() === target.month;
 
 export const filterRecurringTransactionsForMonth = (
   transactions: ParsedTransaction[],
   monthDate: Date
 ) => {
-  const target = getUtcYearMonth(monthDate);
+  const target = getCalendarYearMonth(monthDate);
   return transactions.filter(
-    (transaction) => transaction.isRecurring && isSameUtcMonth(transaction.date, target)
+    (transaction) => transaction.isRecurring && isSameCalendarMonth(transaction.date, target)
   );
 };
 
@@ -155,7 +155,7 @@ export const buildRecurringIcs = (
   transactions: ParsedTransaction[],
   { monthDate, calendarName = "Recurring Transactions" }: BuildRecurringIcsOptions
 ) => {
-  const { year: targetYear, month: targetMonth } = getUtcYearMonth(monthDate);
+  const { year: targetYear, month: targetMonth } = getCalendarYearMonth(monthDate);
 
   const recurringTransactions = filterRecurringTransactionsForMonth(transactions, monthDate)
     .sort((a, b) => a.date.getTime() - b.date.getTime());
@@ -183,7 +183,7 @@ export const buildRecurringIcs = (
     const startDate = createUtcDate(
       targetYear,
       targetMonth,
-      transaction.date.getUTCDate()
+      transaction.date.getDate()
     );
     const endDate = addUtcDays(startDate, 1);
     const rrule = buildMonthlyRule(transaction.date);

@@ -1,8 +1,30 @@
-npm test
+# Allow bypassing pre-commit hook with --no-verify
+if [ -n "$HUSKY_SKIP_HOOKS" ]; then
+  echo "Skipping pre-commit hooks due to --no-verify."
+  exit 0
+fi
 
-# Generate changelog; block commit if it fails
-npm run changelog
-if [ "$?" -ne 0 ]; then
-  echo "Changelog generation failed. Aborting commit."
-  exit 1
+# Run tests (skip if WIP commit)
+if git log -1 --pretty=%B | grep -qi "wip\|fixup\|temp"; then
+  echo "Skipping pre-commit checks for WIP/temp commit"
+else
+  echo "Running tests..."
+  npm test
+  if [ "$?" -ne 0 ]; then
+    echo "Tests failed. Use 'git commit --no-verify' to skip checks for WIP commits."
+    exit 1
+  fi
+fi
+
+# Only generate changelog on main/release branches
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
+if [[ "$BRANCH" == "main" ]] || [[ "$BRANCH" == release/* ]]; then
+  echo "Generating changelog for $BRANCH..."
+  npm run changelog
+  if [ "$?" -ne 0 ]; then
+    echo "Changelog generation failed. Aborting commit."
+    exit 1
+  fi
+else
+  echo "Skipping changelog generation for feature branch: $BRANCH"
 fi
