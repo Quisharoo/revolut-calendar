@@ -13,13 +13,15 @@ As a user, I want to upload my transaction CSV and immediately see an option to 
 
 **Why this priority**: This provides the most immediate value as stated in the user description, allowing users to access the primary functionality right after data upload.
 
-**Independent Test**: Can upload CSV, see export button, download ICS file with recurring transactions, and verify the file contains the expected events.
+**Independent Test**: Can upload CSV, see export button, open modal, select/deselect transactions, download ICS file with only selected recurring transactions, and verify the file contains the expected events.
 
 **Acceptance Scenarios**:
 
 1. **Given** I am on the home page with no data loaded, **When** I upload a valid CSV file containing transactions, **Then** I see an "Export Recurring Transactions" button appear.
-2. **Given** I have uploaded a CSV with recurring transactions, **When** I click the export button, **Then** I download an ICS file containing all recurring transactions with proper recurrence rules.
-3. **Given** the downloaded ICS file, **When** I import it into a calendar application (like Google Calendar or Apple Calendar), **Then** the recurring events appear correctly with their repeat schedules.
+2. **Given** I have uploaded a CSV with recurring transactions, **When** I click the export button, **Then** I see a modal dialog listing all identified recurring transactions with checkboxes.
+3. **Given** the modal is open, **When** I deselect some transactions and click "Export", **Then** I see a loading spinner with "Generating ICS..." message.
+4. **Given** the loading completes, **When** the download starts, **Then** I download an ICS file containing only the selected recurring transactions with proper recurrence rules.
+4. **Given** the downloaded ICS file, **When** I import it into a calendar application (like Google Calendar or Apple Calendar), **Then** the recurring events appear correctly with their repeat schedules.
 
 ---
 
@@ -29,13 +31,15 @@ As a user, I want to load demo data and export recurring transactions to ICS, so
 
 **Why this priority**: Allows users to experience the core export functionality immediately without requiring real data.
 
-**Independent Test**: Load demo data, export ICS file, verify it contains demo recurring transactions.
+**Independent Test**: Load demo data, see export button, open modal, select/deselect transactions, export ICS file, verify it contains selected demo recurring transactions.
 
 **Acceptance Scenarios**:
 
 1. **Given** I am on the home page, **When** I click "Load Demo Data", **Then** I see an "Export Recurring Transactions" button appear.
-2. **Given** demo data is loaded, **When** I click the export button, **Then** I download an ICS file with the demo recurring transactions.
-3. **Given** the demo ICS file, **When** I import it into a calendar app, **Then** the demo recurring events display correctly.
+2. **Given** demo data is loaded, **When** I click the export button, **Then** I see a modal dialog listing all identified recurring transactions with checkboxes.
+3. **Given** the modal is open, **When** I deselect some transactions and click "Export", **Then** I see a loading spinner with "Generating ICS..." message.
+4. **Given** the loading completes, **When** the download starts, **Then** I download an ICS file with the selected demo recurring transactions.
+4. **Given** the demo ICS file, **When** I import it into a calendar app, **Then** the demo recurring events display correctly.
 
 ---
 
@@ -43,10 +47,12 @@ As a user, I want to load demo data and export recurring transactions to ICS, so
 
 1. **Export Button Visibility**: The "Export Recurring Transactions" button must appear on the home page immediately after data is loaded (either via CSV upload or demo load).
 2. **ICS Export Functionality**: Clicking the export button must generate and download a valid ICS file containing all detected recurring transactions from the loaded data.
-3. **Recurrence Detection**: The export must include proper ICS recurrence rules (RRULE) for each recurring transaction based on the detected patterns.
-4. **File Naming**: The downloaded ICS file must be named appropriately (e.g., "recurring-transactions.ics") and include a timestamp or data source indicator.
+3. **Recurrence Detection**: The export must include proper ICS recurrence rules (RRULE) for each recurring transaction based on the detected patterns. Use standard ICS RRULE format (e.g., FREQ=MONTHLY;BYMONTHDAY=15 for monthly recurrences on the 15th).
+4. **File Naming**: The downloaded ICS file must be named using the format "recurring-transactions-{YYYY-MM-DD-HH-MM-SS}.ics" with a timestamp to ensure uniqueness.
 5. **Error Handling**: If no recurring transactions are detected, the export button should be disabled or show an appropriate message.
 6. **Performance**: Export generation must complete within 3 seconds for typical transaction datasets (up to 10,000 transactions).
+7. **Transaction Selection**: Before generating the ICS file, users are presented with a modal dialog showing all identified recurring transactions, allowing them to deselect any they wish to exclude from the export.
+8. **Loading Feedback**: During ICS file generation, display a loading spinner with "Generating ICS..." message.
 
 ## Success Criteria
 
@@ -60,7 +66,7 @@ As a user, I want to load demo data and export recurring transactions to ICS, so
 
 - **ParsedTransaction**: The transaction data structure containing amount, date, description, and category.
 - **ICS File**: Standard calendar file format containing events with recurrence rules.
-- **Recurring Transaction**: A transaction that repeats on a regular schedule (detected by the recurrence detection algorithm).
+- **Recurring Transaction**: A transaction identified as recurring using the existing algorithm that groups by normalized description and transaction direction, detecting patterns of regular monthly occurrences with similar amounts.
 
 ## Assumptions
 
@@ -69,6 +75,10 @@ As a user, I want to load demo data and export recurring transactions to ICS, so
 - Users have access to calendar applications that support ICS import.
 - Demo data includes sufficient recurring transactions for testing.
 
+## Out of Scope
+
+- Integration with calendar APIs for direct upload (follow-up feature).
+
 ## Edge Cases
 
 - CSV files with no recurring transactions (export button disabled).
@@ -76,68 +86,11 @@ As a user, I want to load demo data and export recurring transactions to ICS, so
 - Malformed CSV data (handled by existing upload validation).
 - Transactions with irregular recurrence patterns (exported as individual events if recurrence cannot be determined).
 
-### User Story 3 - [Brief Title] (Priority: P3)
+## Clarifications
 
-[Describe this user journey in plain language]
+### Session 2025-10-17
 
-**Why this priority**: [Explain the value and why it has this priority level]
-
-**Independent Test**: [Describe how this can be tested independently]
-
-**Acceptance Scenarios**:
-
-1. **Given** [initial state], **When** [action], **Then** [expected outcome]
-
----
-
-[Add more user stories as needed, each with an assigned priority]
-
-### Edge Cases
-
-<!--
-  ACTION REQUIRED: The content in this section represents placeholders.
-  Fill them out with the right edge cases.
--->
-
-- What happens when [boundary condition]?
-- How does system handle [error scenario]?
-
-## Requirements *(mandatory)*
-
-<!--
-  ACTION REQUIRED: The content in this section represents placeholders.
-  Fill them out with the right functional requirements.
--->
-
-### Functional Requirements
-
-- **FR-001**: System MUST [specific capability, e.g., "allow users to create accounts"]
-- **FR-002**: System MUST [specific capability, e.g., "validate email addresses"]  
-- **FR-003**: Users MUST be able to [key interaction, e.g., "reset their password"]
-- **FR-004**: System MUST [data requirement, e.g., "persist user preferences"]
-- **FR-005**: System MUST [behavior, e.g., "log all security events"]
-
-*Example of marking unclear requirements:*
-
-- **FR-006**: System MUST authenticate users via [NEEDS CLARIFICATION: auth method not specified - email/password, SSO, OAuth?]
-- **FR-007**: System MUST retain user data for [NEEDS CLARIFICATION: retention period not specified]
-
-### Key Entities *(include if feature involves data)*
-
-- **[Entity 1]**: [What it represents, key attributes without implementation]
-- **[Entity 2]**: [What it represents, relationships to other entities]
-
-## Success Criteria *(mandatory)*
-
-<!--
-  ACTION REQUIRED: Define measurable success criteria.
-  These must be technology-agnostic and measurable.
--->
-
-### Measurable Outcomes
-
-- **SC-001**: [Measurable metric, e.g., "Users can complete account creation in under 2 minutes"]
-- **SC-002**: [Measurable metric, e.g., "System handles 1000 concurrent users without degradation"]
-- **SC-003**: [User satisfaction metric, e.g., "90% of users successfully complete primary task on first attempt"]
-- **SC-004**: [Business metric, e.g., "Reduce support tickets related to [X] by 50%"]
+- Q: What functionality is explicitly out of scope for this feature? → A: Integration with calendar APIs for direct upload
+- Q: How are recurring transactions uniquely identified and grouped? → A: Using existing recurrence detection algorithm that groups by normalized description and direction, detecting monthly patterns with amount tolerance
+- Q: What user feedback is shown during the ICS export process? → A: Show loading spinner with "Generating ICS..." message
 
