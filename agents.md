@@ -1,5 +1,7 @@
 # Transaction Calendar – Agent Guide
 
+This guide aligns with the project constitution at `.specify/memory/constitution.md`.
+
 ## Project Purpose
 - Provide a calendar-centric dashboard for importing, visualising, and managing financial transactions with real-time insights and CSV uploads.
 
