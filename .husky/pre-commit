@@ -1,5 +1,11 @@
+# Allow bypassing pre-commit hook with --no-verify
+if [ -n "$HUSKY_SKIP_HOOKS" ]; then
+  echo "Skipping pre-commit hooks due to --no-verify."
+  exit 0
+fi
+
 # Run tests (skip if WIP commit)
-if [[ "$*" == *"--no-verify"* ]] || git log -1 --pretty=%B | grep -qi "wip\|fixup\|temp"; then
+if git log -1 --pretty=%B | grep -qi "wip\|fixup\|temp"; then
   echo "Skipping pre-commit checks for WIP/temp commit"
 else
   echo "Running tests..."

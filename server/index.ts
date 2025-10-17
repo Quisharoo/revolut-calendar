@@ -95,12 +95,38 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     // this serves both the API and the client.
     // It is the only port that is not firewalled.
     const port = parseInt(process.env.PORT || "5000", 10);
-    server.listen({
-      port,
-      host: "0.0.0.0",
-      reusePort: true,
-    }, () => {
-      log(`serving on port ${port}`);
-    });
+    const fallbackPort = 5001;
+
+    const startServer = (portToTry: number) => {
+      return new Promise<void>((resolve, reject) => {
+        const serverInstance = server.listen({
+          port: portToTry,
+          host: "0.0.0.0",
+          reusePort: true,
+        }, () => {
+          log(`serving on port ${portToTry}`);
+          resolve();
+        });
+
+        serverInstance.on('error', (err: any) => {
+          if (err.code === 'EADDRINUSE') {
+            reject(err);
+          } else {
+            reject(err);
+          }
+        });
+      });
+    };
+
+    try {
+      await startServer(port);
+    } catch (err: any) {
+      if (err.code === 'EADDRINUSE') {
+        log(`Port ${port} in use, trying fallback port ${fallbackPort}`);
+        await startServer(fallbackPort);
+      } else {
+        throw err;
+      }
+    }
   })();
 }

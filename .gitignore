@@ -58,6 +58,9 @@ Desktop.ini
 .env.*
 !.env.example
 
+# Git worktrees managed locally
+/.worktrees/
+
 # Keep these active config folders:
 # .github/ - CI/CD workflows
 # .vscode/ - Editor settings
