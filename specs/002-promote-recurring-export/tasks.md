@@ -45,11 +45,11 @@ description: "Task list template for feature implementation"
 
 **Purpose**: Core shared components that MUST be complete before any user story can be implemented
 
-- [ ] T001 Create ExportModal component with transaction selection in client/src/components/ExportModal.tsx
-- [ ] T002 Create use-export custom hook for export logic in client/src/hooks/use-export.ts
-- [ ] T003 Modify home page to show export button after data load in client/src/pages/home.tsx
-- [ ] T004 [P] Create unit tests for ExportModal component in client/src/components/__tests__/ExportModal.test.tsx
-- [ ] T005 [P] Create unit tests for use-export hook in client/src/hooks/__tests__/use-export.test.ts
+ - [x] T001 Create ExportModal component with transaction selection in client/src/components/ExportModal.tsx
+ - [x] T002 Create use-export custom hook for export logic in client/src/hooks/use-export.ts
+ - [x] T003 Modify home page to show export button after data load in client/src/pages/home.tsx
+ - [x] T004 [P] Create unit tests for ExportModal component in client/src/components/__tests__/ExportModal.test.tsx
+ - [x] T005 [P] Create unit tests for use-export hook in client/src/hooks/__tests__/use-export.test.ts
 
 **Checkpoint**: Foundational components ready - user story implementation can now begin in parallel
 
@@ -82,7 +82,7 @@ description: "Task list template for feature implementation"
 **Purpose**: Final touches, accessibility, and any remaining concerns
 
 - [ ] T012 Verify accessibility compliance for export modal in client/src/components/ExportModal.tsx
-- [ ] T013 Add error handling for edge cases in client/src/hooks/use-export.ts
-- [ ] T014 Update component documentation and TypeScript types
-- [ ] T015 Test with large datasets (performance validation)
-- [ ] T016 Run full test suite and verify all tests pass
+ - [ ] T013 Add error handling for edge cases in client/src/hooks/use-export.ts
+ - [ ] T014 Update component documentation and TypeScript types
+ - [ ] T015 Test with large datasets (performance validation)
+ - [x] T016 Run full test suite and verify all tests pass
