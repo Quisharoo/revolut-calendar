@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, type PointerEvent as ReactPointerEvent } from "react";
 import type { ParsedTransaction } from "@shared/schema";
 import {
   formatCurrency,
@@ -8,6 +8,7 @@ import {
   DEFAULT_CURRENCY_SYMBOL,
 } from "@/lib/transactionUtils";
 import { RepeatIcon, TrendingUp, TrendingDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface CalendarDayCellProps {
   date: Date;
@@ -16,6 +17,14 @@ interface CalendarDayCellProps {
   isCurrentMonth: boolean;
   isSelected?: boolean;
   onSelect?: (date: Date, summary: DailySummary) => void;
+  onPointerDown?: (event: ReactPointerEvent<HTMLDivElement>) => void;
+  onPointerEnter?: (event: ReactPointerEvent<HTMLDivElement>) => void;
+  onPointerUp?: (event: ReactPointerEvent<HTMLDivElement>) => void;
+  disableClick?: boolean;
+  isInRange?: boolean;
+  isRangeEdge?: boolean;
+  isPreview?: boolean;
+  cellIndex?: number;
 }
 
 const netColorClass = (value: number) => {
@@ -34,6 +43,14 @@ export default function CalendarDayCell({
   isCurrentMonth,
   isSelected = false,
   onSelect,
+  onPointerDown,
+  onPointerEnter,
+  onPointerUp,
+  disableClick = false,
+  isInRange = false,
+  isRangeEdge = false,
+  isPreview = false,
+  cellIndex,
 }: CalendarDayCellProps) {
   const resolvedSummary = useMemo<DailySummary>(() => {
     if (summary) {
@@ -90,10 +107,43 @@ export default function CalendarDayCell({
     <div
       role="button"
       tabIndex={0}
-      className={`flex h-full flex-col border border-border bg-card transition-colors hover-elevate cursor-pointer ${
-        !isCurrentMonth ? "opacity-40" : ""
-      } ${isSelected ? "ring-2 ring-primary ring-inset" : ""}`}
-      onClick={() => onSelect?.(date, resolvedSummary)}
+      data-cell-index={cellIndex}
+      className={cn(
+        "flex h-full select-none flex-col border border-border bg-card transition-colors hover-elevate cursor-pointer",
+        !isCurrentMonth && "opacity-40",
+        isSelected && "ring-2 ring-primary ring-inset",
+        isInRange && "bg-primary/10",
+        isPreview && !isInRange && "bg-primary/5",
+        isRangeEdge && "ring-2 ring-primary ring-inset"
+      )}
+      onClick={() => {
+        if (!disableClick) {
+          onSelect?.(date, resolvedSummary);
+        }
+      }}
+      onPointerDown={(event) => {
+        const isMouse = event.pointerType === "mouse";
+        
+        // Only allow left-button mouse clicks
+        if (isMouse && event.button !== 0) {
+          return;
+        }
+        
+        onPointerDown?.(event);
+      }}
+      onPointerEnter={(event) => {
+        onPointerEnter?.(event);
+      }}
+      onPointerUp={(event) => {
+        const isMouse = event.pointerType === "mouse";
+        
+        // Only allow left-button mouse clicks
+        if (isMouse && event.button !== 0) {
+          return;
+        }
+        
+        onPointerUp?.(event);
+      }}
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
@@ -102,8 +152,8 @@ export default function CalendarDayCell({
       }}
       data-testid={`cell-day-${date.getDate()}`}
     >
-      <div className="flex items-start justify-between gap-2 p-3 pb-1">
-        <div className="flex items-center gap-1.5 flex-wrap">
+      <div className="flex flex-wrap items-start justify-between gap-2 p-3 pb-1 sm:flex-nowrap">
+        <div className="flex flex-wrap items-center gap-1.5">
           <span
             className={`text-sm font-medium ${
               isToday
@@ -134,20 +184,20 @@ export default function CalendarDayCell({
         )}
       </div>
 
-      <div className="flex flex-1 flex-col px-3 pb-3">
+      <div className="flex flex-1 flex-col gap-2 px-3 pb-3">
         {transactionCount > 0 ? (
           <>
-            <div className="mt-1 flex flex-col gap-1.5">
-              <div className="flex w-full items-baseline justify-between gap-2">
+            <div className="mt-1 flex flex-col gap-2">
+              <div className="flex w-full flex-wrap items-baseline justify-between gap-2 sm:flex-nowrap">
                 <span
-                  className={`text-base font-bold tabular-nums tracking-tight leading-none whitespace-nowrap overflow-hidden text-ellipsis ${netClass}`}
+                  className={`text-base font-bold tabular-nums tracking-tight leading-tight overflow-hidden text-ellipsis sm:whitespace-nowrap ${netClass}`}
                   data-testid="day-net-total"
                 >
                   {formatCurrency(resolvedSummary.totals.net, resolvedSummary.currencySymbol)}
                 </span>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
                 <div className="flex items-center gap-1.5 rounded-full bg-primary/10 px-2 py-0.5">
                   <TrendingUp className="h-3 w-3 text-primary" />
                   <span className="text-xs font-medium text-primary">{incomeCount}</span>
