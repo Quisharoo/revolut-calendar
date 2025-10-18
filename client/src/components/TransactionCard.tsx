@@ -26,9 +26,9 @@ export default function TransactionCard({ transaction }: TransactionCardProps) {
               {transaction.description}
             </p>
           </div>
-          {(transaction.source?.name || transaction.broker) && (
-            <p className="text-[10px] text-muted-foreground truncate mt-0.5" data-testid="text-broker">
-              {transaction.source?.name || transaction.broker}
+          {transaction.source?.name && (
+            <p className="text-[10px] text-muted-foreground truncate mt-0.5" data-testid="text-source">
+              {transaction.source.name}
             </p>
           )}
         </div>

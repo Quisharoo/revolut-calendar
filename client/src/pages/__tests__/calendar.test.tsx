@@ -4,14 +4,30 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import CalendarDayCell from "@/components/CalendarDayCell";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { ParsedTransaction } from "@shared/schema";
+import { CONTRACT_VERSION } from "@shared/version";
 
-const sampleTransactions: ParsedTransaction[] = Array.from({ length: 12 }, (_, index) => ({
+const withDefaults = (
+  transaction: Omit<ParsedTransaction, "contractVersion" | "currencySymbol"> &
+    Partial<Pick<ParsedTransaction, "contractVersion" | "currencySymbol">>
+): ParsedTransaction => ({
+  ...transaction,
+  currencySymbol: transaction.currencySymbol ?? "€",
+  contractVersion: transaction.contractVersion ?? CONTRACT_VERSION,
+});
+
+const withDefaultList = (
+  list: Array<
+    Omit<ParsedTransaction, "contractVersion" | "currencySymbol"> &
+      Partial<Pick<ParsedTransaction, "contractVersion" | "currencySymbol">>
+  >
+): ParsedTransaction[] => list.map(withDefaults);
+
+const sampleTransactions: ParsedTransaction[] = Array.from({ length: 12 }, (_, index) => withDefaults({
   id: `sample-${index}`,
   date: new Date("2024-05-18T12:00:00Z"),
   description: `Sample transaction ${index}`,
   amount: index % 2 === 0 ? -(index + 5) : index + 10,
   category: index % 2 === 0 ? "Expense" : "Income",
-  broker: index % 2 === 0 ? "Expense Broker" : "Income Broker",
   source: {
     name: index % 2 === 0 ? "Expense Broker" : "Income Broker",
     type: index % 2 === 0 ? "merchant" : "broker",
@@ -107,14 +123,13 @@ describe("CalendarPage day detail interactions", () => {
 
 describe("CalendarPage filters", () => {
   it("filters to recurring transactions when recurring filter active", async () => {
-    const transactions: ParsedTransaction[] = [
+    const transactions: ParsedTransaction[] = withDefaultList([
       {
         id: "recurring-expense",
         date: new Date("2024-05-01T12:00:00Z"),
         description: "Streaming Service",
         amount: -12.99,
         category: "Expense",
-        broker: "Streamer",
         source: { name: "Streamer", type: "merchant" },
         isRecurring: true,
       },
@@ -124,7 +139,6 @@ describe("CalendarPage filters", () => {
         description: "Groceries",
         amount: -45.5,
         category: "Expense",
-        broker: "Grocer",
         source: { name: "Grocer", type: "merchant" },
         isRecurring: false,
       },
@@ -134,11 +148,10 @@ describe("CalendarPage filters", () => {
         description: "Salary",
         amount: 2200,
         category: "Income",
-        broker: "Employer",
         source: { name: "Employer", type: "broker" },
         isRecurring: true,
       },
-    ];
+    ]);
 
     render(<CalendarPage transactions={transactions} />);
 
@@ -182,14 +195,13 @@ describe("CalendarPage filters", () => {
   it("filters transactions by the unified search query", async () => {
     const user = userEvent.setup();
 
-    const transactions: ParsedTransaction[] = [
+    const transactions: ParsedTransaction[] = withDefaultList([
       {
         id: "gym-membership",
         date: new Date("2024-05-02T12:00:00Z"),
         description: "Gym Membership",
         amount: -45,
         category: "Expense",
-        broker: "Fitness Center",
         source: { name: "Fitness Center", type: "merchant" },
         isRecurring: true,
       },
@@ -199,7 +211,6 @@ describe("CalendarPage filters", () => {
         description: "Paycheck",
         amount: 2800,
         category: "Income",
-        broker: "Employer",
         source: { name: "Employer", type: "broker" },
         isRecurring: true,
       },
@@ -209,11 +220,10 @@ describe("CalendarPage filters", () => {
         description: "Coffee Run",
         amount: -6.5,
         category: "Expense",
-        broker: "Cafe",
         source: { name: "Cafe", type: "merchant" },
         isRecurring: false,
       },
-    ];
+    ]);
 
     render(<CalendarPage transactions={transactions} />);
 
@@ -270,14 +280,13 @@ describe("CalendarDayCell summary display", () => {
   });
 
   it("shows net totals without rendering the detailed card", () => {
-    const transactions: ParsedTransaction[] = [
+    const transactions: ParsedTransaction[] = withDefaultList([
       {
         id: "income-1",
         date,
         description: "Salary",
         amount: 5000,
         category: "Income",
-        broker: "Employer",
         source: { name: "Employer", type: "broker" },
         isRecurring: false,
       },
@@ -287,28 +296,26 @@ describe("CalendarDayCell summary display", () => {
         description: "Bonus",
         amount: 1500,
         category: "Income",
-        broker: "Employer",
         source: { name: "Employer", type: "broker" },
         isRecurring: false,
       },
-    ];
+    ]);
 
     renderCell(transactions);
 
-    expect(screen.getByTestId("day-net-total")).toHaveTextContent("+$6,500.00");
+    expect(screen.getByTestId("day-net-total")).toHaveTextContent("+€6,500.00");
     expect(screen.getByTestId("text-transaction-count")).toHaveTextContent("2");
     expect(screen.queryByTestId("group-card-income")).not.toBeInTheDocument();
   });
 
   it("keeps the layout compact for expense-heavy days", () => {
-    const transactions: ParsedTransaction[] = [
+    const transactions: ParsedTransaction[] = withDefaultList([
       {
         id: "expense-1",
         date,
         description: "Rent",
         amount: -1800,
         category: "Expense",
-        broker: "Landlord",
         source: { name: "Landlord", type: "merchant" },
         isRecurring: true,
       },
@@ -318,33 +325,31 @@ describe("CalendarDayCell summary display", () => {
         description: "Groceries",
         amount: -120.5,
         category: "Expense",
-        broker: "Whole Foods",
         source: { name: "Whole Foods", type: "merchant" },
         isRecurring: false,
       },
-    ];
+    ]);
 
     renderCell(transactions);
 
-    expect(screen.getByTestId("day-net-total")).toHaveTextContent("-$1,920.50");
+    expect(screen.getByTestId("day-net-total")).toHaveTextContent("-€1,920.50");
     expect(screen.getByTestId("text-transaction-count")).toHaveTextContent("2");
     expect(screen.queryByTestId("group-card-expenses")).not.toBeInTheDocument();
   });
 
   it("displays the currency symbol from the transaction data", () => {
-    const transactions: ParsedTransaction[] = [
+    const transactions: ParsedTransaction[] = withDefaultList([
       {
         id: "income-eur",
         date,
         description: "Consulting",
         amount: 3200,
         category: "Income",
-        broker: "EU Client",
         source: { name: "EU Client", type: "broker" },
         isRecurring: false,
         currencySymbol: "€",
       },
-    ];
+    ]);
 
     renderCell(transactions);
 
@@ -352,14 +357,13 @@ describe("CalendarDayCell summary display", () => {
   });
 
   it("shows a recurring badge when recurring transactions are present", () => {
-    const transactions: ParsedTransaction[] = [
+    const transactions: ParsedTransaction[] = withDefaultList([
       {
         id: "recurring-1",
         date,
         description: "Subscription",
         amount: -25,
         category: "Expense",
-        broker: "Service",
         source: { name: "Service", type: "merchant" },
         isRecurring: true,
       },
@@ -369,11 +373,10 @@ describe("CalendarDayCell summary display", () => {
         description: "Salary",
         amount: 2500,
         category: "Income",
-        broker: "Employer",
         source: { name: "Employer", type: "broker" },
         isRecurring: true,
       },
-    ];
+    ]);
 
     renderCell(transactions);
 
@@ -388,14 +391,13 @@ describe("CalendarDayCell summary display", () => {
   });
 
   it("displays a net total badge for the day", () => {
-    const transactions: ParsedTransaction[] = [
+    const transactions: ParsedTransaction[] = withDefaultList([
       {
         id: "income-1",
         date,
         description: "Consulting",
         amount: 3200,
         category: "Income",
-        broker: "Client",
         source: { name: "Client", type: "broker" },
         isRecurring: false,
       },
@@ -405,15 +407,14 @@ describe("CalendarDayCell summary display", () => {
         description: "Rent",
         amount: -1400,
         category: "Expense",
-        broker: "Landlord",
         source: { name: "Landlord", type: "merchant" },
         isRecurring: false,
       },
-    ];
+    ]);
 
     renderCell(transactions);
 
-    expect(screen.getByTestId("day-net-total")).toHaveTextContent("$1,800.00");
+    expect(screen.getByTestId("day-net-total")).toHaveTextContent("+€1,800.00");
   });
 });
 

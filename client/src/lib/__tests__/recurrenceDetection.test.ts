@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { ParsedTransaction } from "@shared/schema";
-import { applyRecurringDetection, detectRecurringTransactions } from "../recurrenceDetection";
+import { CONTRACT_VERSION } from "@shared/version";
+import {
+  applyRecurringDetection,
+  detectRecurringSeries,
+} from "../recurrenceDetection";
 
 type TransactionOverrides = {
   id: string;
@@ -9,7 +13,6 @@ type TransactionOverrides = {
   description?: string;
   category?: ParsedTransaction["category"];
   source?: ParsedTransaction["source"];
-  broker?: string;
   currencySymbol?: string;
   isRecurring?: boolean;
 };
@@ -21,12 +24,12 @@ const createTransaction = (overrides: TransactionOverrides): ParsedTransaction =
   amount: overrides.amount,
   category: overrides.category ?? (overrides.amount >= 0 ? "Income" : "Expense"),
   source: overrides.source ?? { name: overrides.description ?? "Sample", type: "merchant" },
-  broker: overrides.broker,
   currencySymbol: overrides.currencySymbol ?? "€",
   isRecurring: overrides.isRecurring ?? false,
+  contractVersion: CONTRACT_VERSION,
 });
 
-describe("detectRecurringTransactions", () => {
+describe("detectRecurringSeries", () => {
   it("identifies monthly recurring transactions from the same source", () => {
     const transactions = [
       createTransaction({ id: "a", date: "2024-01-05", amount: -15, description: "Netflix" }),
@@ -35,11 +38,10 @@ describe("detectRecurringTransactions", () => {
       createTransaction({ id: "d", date: "2024-04-05", amount: -15, description: "Netflix" }),
     ];
 
-    const recurringIds = detectRecurringTransactions(transactions);
+    const { series } = detectRecurringSeries(transactions);
 
-    expect(recurringIds.size).toBe(4);
-    expect(recurringIds.has("a")).toBe(true);
-    expect(recurringIds.has("d")).toBe(true);
+    expect(series).toHaveLength(1);
+    expect(series[0]?.transactionIds).toEqual(["a", "b", "c", "d"]);
   });
 
   it("requires at least three qualifying occurrences in a run", () => {
@@ -48,9 +50,9 @@ describe("detectRecurringTransactions", () => {
       createTransaction({ id: "b", date: "2024-02-01", amount: -20, description: "Gym" }),
     ];
 
-    const recurringIds = detectRecurringTransactions(transactions);
+    const { series } = detectRecurringSeries(transactions);
 
-    expect(recurringIds.size).toBe(0);
+    expect(series).toHaveLength(0);
   });
 
   it("ignores transactions when spacing falls outside the monthly window", () => {
@@ -60,21 +62,23 @@ describe("detectRecurringTransactions", () => {
       createTransaction({ id: "c", date: "2024-04-15", amount: -30, description: "Insurance" }),
     ];
 
-    const recurringIds = detectRecurringTransactions(transactions);
+    const { series } = detectRecurringSeries(transactions);
 
-    expect(recurringIds.size).toBe(0);
+    expect(series).toHaveLength(0);
   });
 
   it("tolerates small variations in transaction amount", () => {
     const transactions = [
-      createTransaction({ id: "a", date: "2024-05-10", amount: -19.99, description: "Spotify" }),
-      createTransaction({ id: "b", date: "2024-06-09", amount: -20.05, description: "Spotify" }),
-      createTransaction({ id: "c", date: "2024-07-10", amount: -20.01, description: "Spotify" }),
+      createTransaction({ id: "a", date: "2024-01-10", amount: -19.99, description: "Spotify" }),
+      createTransaction({ id: "b", date: "2024-02-09", amount: -20.05, description: "Spotify" }),
+      createTransaction({ id: "c", date: "2024-03-10", amount: -20.01, description: "Spotify" }),
+      createTransaction({ id: "d", date: "2024-04-10", amount: -19.98, description: "Spotify" }),
     ];
 
-    const recurringIds = detectRecurringTransactions(transactions);
+    const { series } = detectRecurringSeries(transactions);
 
-    expect(recurringIds.size).toBe(3);
+    expect(series).toHaveLength(1);
+    expect(series[0]?.transactionIds).toEqual(["a", "b", "c", "d"]);
   });
 });
 
@@ -84,14 +88,16 @@ describe("applyRecurringDetection", () => {
       createTransaction({ id: "r1", date: "2024-01-01", amount: -12, description: "Adobe" }),
       createTransaction({ id: "r2", date: "2024-02-02", amount: -12, description: "Adobe" }),
       createTransaction({ id: "r3", date: "2024-03-03", amount: -12, description: "Adobe" }),
-      createTransaction({ id: "r4", date: "2024-01-15", amount: -8, description: "Coffee" }),
+      createTransaction({ id: "r4", date: "2024-04-03", amount: -12, description: "Adobe" }),
+      createTransaction({ id: "c1", date: "2024-01-15", amount: -8, description: "Coffee" }),
     ];
 
-    const annotated = applyRecurringDetection(transactions);
+    const { transactions: annotated, series } = applyRecurringDetection(transactions);
     const recurring = annotated.filter((tx) => tx.description === "Adobe");
     const coffee = annotated.find((tx) => tx.description === "Coffee");
 
     expect(recurring.every((tx) => tx.isRecurring)).toBe(true);
     expect(coffee?.isRecurring).toBe(false);
+    expect(series).toHaveLength(1);
   });
 });

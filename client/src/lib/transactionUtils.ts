@@ -132,13 +132,6 @@ export const resolveTransactionSource = (
     return transaction.source;
   }
 
-  if (transaction.broker) {
-    return {
-      name: transaction.broker,
-      type: "broker",
-    };
-  }
-
   if (transaction.description) {
     return {
       name: transaction.description,
@@ -163,13 +156,6 @@ const normalizeSource = (
 
   if (normalizedType) {
     return { ...source, type: normalizedType };
-  }
-
-  if (fallback.broker) {
-    return {
-      name: fallback.broker,
-      type: "broker",
-    };
   }
 
   return source.name ? source : defaultSource;

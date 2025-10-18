@@ -10,7 +10,8 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useToast } from "@/hooks/use-toast";
-import { buildRecurringIcs, filterRecurringTransactionsForMonth } from "@/lib/icsExport";
+import { buildRecurringSeriesIcs } from "@/lib/icsExport";
+import { useRecurringSeries } from "@/workers/useRecurringSeries";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { Download, Filter } from "lucide-react";
 import RangeSummaryDrawer from "@/components/RangeSummaryDrawer";
@@ -101,7 +102,7 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
   const filteredTransactions = useMemo(() => {
     const searchQuery = filters.searchText.trim().toLowerCase();
     return transactions.filter((transaction) => {
-      const sourceLabel = transaction.source?.name ?? transaction.broker ?? "";
+      const sourceLabel = transaction.source?.name ?? "";
       if (
         filters.categories.length > 0 &&
         !filters.categories.includes(transaction.category)
@@ -146,9 +147,18 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
     );
   }, [filteredTransactions, currentDate]);
 
-  const recurringTransactionsInMonth = useMemo(
-    () => filterRecurringTransactionsForMonth(transactions, currentDate),
-    [transactions, currentDate]
+  const { series: recurringSeries } = useRecurringSeries(transactions);
+
+  const recurringSeriesInMonth = useMemo(
+    () =>
+      recurringSeries.filter((series) =>
+        series.explanation.occurrences.some(
+          (occurrence) =>
+            occurrence.date.getMonth() === currentDate.getMonth() &&
+            occurrence.date.getFullYear() === currentDate.getFullYear()
+        )
+      ),
+    [recurringSeries, currentDate]
   );
 
   const rangeTransactions = useMemo(
@@ -202,7 +212,7 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
       year: "numeric",
     });
 
-    if (recurringTransactionsInMonth.length === 0) {
+    if (recurringSeriesInMonth.length === 0) {
       toast({
         title: "No recurring transactions",
         description: `There are no recurring transactions in ${monthLabel}.`,
@@ -211,12 +221,12 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
     }
 
     try {
-      const icsContent = buildRecurringIcs(transactions, {
+      const { icsText } = buildRecurringSeriesIcs(recurringSeriesInMonth, {
         monthDate: currentDate,
         calendarName: `Recurring Transactions - ${monthLabel}`,
       });
 
-      const blob = new Blob([icsContent], {
+      const blob = new Blob([icsText], {
         type: "text/calendar;charset=utf-8",
       });
       const downloadUrl = URL.createObjectURL(blob);
@@ -277,7 +287,7 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
                             variant="outline"
                             size="sm"
                             onClick={handleExportRecurring}
-                            disabled={recurringTransactionsInMonth.length === 0}
+                            disabled={recurringSeriesInMonth.length === 0}
                             data-testid="button-export-ics"
                           >
                             <Download className="w-4 h-4 mr-2" />
@@ -346,7 +356,7 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
                               variant="outline"
                               size="sm"
                               onClick={handleExportRecurring}
-                              disabled={recurringTransactionsInMonth.length === 0}
+                              disabled={recurringSeriesInMonth.length === 0}
                               data-testid="button-export-ics"
                             >
                               <Download className="w-4 h-4 mr-2" />

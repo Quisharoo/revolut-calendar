@@ -70,7 +70,7 @@ export default function DayDetailPanel({
             <Card className="p-4">
               <div className="space-y-3">
                 {incomeTransactions.map((transaction) => {
-                  const sourceLabel = transaction.source?.name ?? transaction.broker;
+                  const sourceLabel = transaction.source?.name?.trim();
                   return (
                     <div
                       key={transaction.id}
@@ -116,7 +116,7 @@ export default function DayDetailPanel({
             <Card className="p-4">
               <div className="space-y-3">
                 {expenseTransactions.map((transaction) => {
-                  const sourceLabel = transaction.source?.name ?? transaction.broker;
+                  const sourceLabel = transaction.source?.name?.trim();
                   return (
                     <div
                       key={transaction.id}
