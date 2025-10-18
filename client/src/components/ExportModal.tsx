@@ -99,7 +99,7 @@ export default function ExportModal({
   }, [transactions, recurringIds]);
 
   React.useEffect(() => {
-    setSelected(new Set(recurringGroups.map(([_, arr]) => arr[arr.length - 1].id)));
+    setSelected(new Set(recurringGroups.map(([, arr]) => arr[arr.length - 1].id)));
   }, [recurringGroups]);
 
   const toggle = (id: string) => {
