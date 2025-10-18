@@ -8,13 +8,13 @@ All notable changes to this project will be documented in this file.
 
 - Improve calendar cell layout and future date handling
 - Fix savings depsit + cursorrules
-- Revert branchlet template to default format
-- Correct postCreateCmd script name to db:push
+- Prevent duplicate calendar on mobile ([#17](https://github.com/Quisharoo/revolut-calendar/issues/17)) ([#17](https://github.com/Quisharoo/revolut-calendar/pull/17))
 
 ### Features
 
 - Consolidate search and source filters into unified search
-- Update worktree naming pattern to include branch name
+- **branchA**: Range report ([#15](https://github.com/Quisharoo/revolut-calendar/issues/15)) ([#15](https://github.com/Quisharoo/revolut-calendar/pull/15))
+- Add worktree management and development workflow improvements ([#26](https://github.com/Quisharoo/revolut-calendar/issues/26)) ([#26](https://github.com/Quisharoo/revolut-calendar/pull/26))
 
 ### Miscellaneous Tasks
 
@@ -25,11 +25,6 @@ All notable changes to this project will be documented in this file.
 - **husky**: Run changelog in pre-commit
 - **config**: Adding commit hooks for changelog
 - **changelog**: Regenerate changelog with git-cliff
-- **git**: Ignore .worktrees directory
-- Add branchlet configuration for worktree management
-- Clean up duplicate files and orphaned references
-- Remove redundant test-changelog.md file
-- Enhance .gitignore with comprehensive build and development artifacts
 
 ### Pull Requests
 
