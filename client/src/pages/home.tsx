@@ -57,8 +57,8 @@ export default function Home() {
     });
   };
 
-  const handleExport = async (selectedIds: string[]) => {
-    const result = await exportTransactions(transactions, selectedIds);
+  const handleExport = async (selectedIds: string[], monthDate: Date) => {
+    const result = await exportTransactions(transactions, selectedIds, monthDate);
     if (result.success) {
       toast({ title: 'Calendar exported', description: result.fileName });
     } else {
@@ -94,7 +94,7 @@ export default function Home() {
         transactions={transactions}
         isOpen={isExportOpen}
         onClose={() => setExportOpen(false)}
-        onExport={(ids) => handleExport(ids)}
+        onExport={handleExport}
         isGenerating={isGenerating}
       />
     </>

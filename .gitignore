@@ -61,4 +61,5 @@ Desktop.ini
 # Git worktrees managed locally
 /.worktrees/
 
-/specs
+specs/
+.csvfiles/

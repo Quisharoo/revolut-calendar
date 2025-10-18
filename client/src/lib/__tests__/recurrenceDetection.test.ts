@@ -80,6 +80,75 @@ describe("detectRecurringTransactions", () => {
 
     expect(recurringIds.size).toBe(3);
   });
+
+  it("handles varying monthly amounts without flagging intra-month outliers", () => {
+    const transactions = [
+      createTransaction({ id: "jan-main", date: "2024-01-25", amount: 2750, description: "Salary" }),
+      createTransaction({ id: "feb-main", date: "2024-02-23", amount: 2810, description: "Salary" }),
+      createTransaction({ id: "mar-main", date: "2024-03-25", amount: 2795, description: "Salary" }),
+      createTransaction({ id: "apr-bonus", date: "2024-04-10", amount: 75, description: "Salary" }),
+      createTransaction({ id: "apr-main", date: "2024-04-25", amount: 4100, description: "Salary" }),
+      createTransaction({ id: "may-main", date: "2024-05-24", amount: 2840, description: "Salary" }),
+      createTransaction({ id: "jun-main", date: "2024-06-25", amount: 2650, description: "Salary" }),
+      createTransaction({ id: "jul-main", date: "2024-07-25", amount: 3050, description: "Salary" }),
+      createTransaction({ id: "aug-main", date: "2024-08-23", amount: 2875, description: "Salary" }),
+      createTransaction({ id: "sep-main", date: "2024-09-25", amount: 2860, description: "Salary" }),
+    ];
+
+    const recurringIds = detectRecurringTransactions(transactions);
+
+    [
+      "jan-main",
+      "feb-main",
+      "mar-main",
+      "apr-main",
+      "may-main",
+      "jun-main",
+      "jul-main",
+      "aug-main",
+      "sep-main",
+    ].forEach((id) => {
+      expect(recurringIds.has(id)).toBe(true);
+    });
+
+    expect(recurringIds.has("apr-bonus")).toBe(false);
+  });
+
+  it("allows occasional skipped months while keeping the series intact", () => {
+    const transactions = [
+      createTransaction({ id: "jan", date: "2024-01-25", amount: -16.72, description: "Pension" }),
+      createTransaction({ id: "feb", date: "2024-02-26", amount: -16.72, description: "Pension" }),
+      createTransaction({ id: "mar", date: "2024-03-25", amount: -16.72, description: "Pension" }),
+      createTransaction({ id: "apr", date: "2024-04-25", amount: -16.72, description: "Pension" }),
+      createTransaction({ id: "may", date: "2024-05-27", amount: -16.72, description: "Pension" }),
+      createTransaction({ id: "jun", date: "2024-06-25", amount: -16.72, description: "Pension" }),
+      createTransaction({ id: "jul", date: "2024-07-25", amount: -16.72, description: "Pension" }),
+      createTransaction({ id: "aug", date: "2024-08-26", amount: -16.72, description: "Pension" }),
+      createTransaction({ id: "oct", date: "2024-10-02", amount: -16.72, description: "Pension" }),
+      createTransaction({ id: "nov", date: "2024-11-25", amount: -16.72, description: "Pension" }),
+      createTransaction({ id: "dec", date: "2024-12-30", amount: -16.72, description: "Pension" }),
+      createTransaction({ id: "jan-25", date: "2025-01-27", amount: -16.72, description: "Pension" }),
+    ];
+
+    const recurringIds = detectRecurringTransactions(transactions);
+
+    [
+      "oct",
+      "nov",
+      "dec",
+      "jan",
+      "feb",
+      "mar",
+      "apr",
+      "may",
+      "jun",
+      "jul",
+      "aug",
+      "jan-25",
+    ].forEach((id) => {
+      expect(recurringIds.has(id)).toBe(true);
+    });
+  });
 });
 
 describe("applyRecurringDetection", () => {

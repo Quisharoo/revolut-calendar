@@ -6,6 +6,7 @@ import {
   summarizeRecurringTransactionsForMonth,
   type RecurringSeriesSummary,
 } from '@/lib/recurrenceDetection';
+import { DEFAULT_CURRENCY_SYMBOL, formatCurrency } from '@/lib/transactionUtils';
 
 const formatDate = (date: Date) =>
   date.toLocaleDateString(undefined, {
@@ -37,7 +38,7 @@ interface ExportModalProps {
   transactions: ParsedTransaction[];
   isOpen: boolean;
   onClose: () => void;
-  onExport: (selectedIds: string[]) => void;
+  onExport: (selectedIds: string[], monthDate: Date) => void;
   isGenerating?: boolean;
   monthDate?: Date;
 }
@@ -112,7 +113,7 @@ export default function ExportModal({
     if (selected.size === 0) {
       return;
     }
-    onExport(Array.from(selected));
+    onExport(Array.from(selected), resolvedMonthDate);
   };
 
   return (
@@ -133,6 +134,10 @@ export default function ExportModal({
               const { representative } = summary;
               const id = representative.id;
               const label = representative.source?.name ?? representative.description;
+              const amountLabel = formatCurrency(
+                representative.amount,
+                representative.currencySymbol ?? DEFAULT_CURRENCY_SYMBOL
+              );
 
               return (
                 <label
@@ -146,7 +151,12 @@ export default function ExportModal({
                     onChange={() => toggle(id)}
                   />
                   <div className="flex-1">
-                    <div className="font-medium">{label}</div>
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="font-medium">{label}</span>
+                      <span className="text-sm font-semibold tabular-nums text-muted-foreground">
+                        {amountLabel}
+                      </span>
+                    </div>
                     <div className="text-sm text-muted-foreground">
                       {buildOccurrenceSummary(summary)}
                     </div>

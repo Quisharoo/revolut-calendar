@@ -5,6 +5,8 @@ interface RecurrenceDetectionOptions {
   maxDaysBetweenOccurrences: number;
   minOccurrences: number;
   amountToleranceCents: number;
+  dayFlexToleranceDays: number;
+  maxSkippedMonths: number;
 }
 
 const DEFAULT_OPTIONS: RecurrenceDetectionOptions = {
@@ -12,6 +14,8 @@ const DEFAULT_OPTIONS: RecurrenceDetectionOptions = {
   maxDaysBetweenOccurrences: 33,
   minOccurrences: 3,
   amountToleranceCents: 100,
+  dayFlexToleranceDays: 4,
+  maxSkippedMonths: 1,
 };
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -23,8 +27,6 @@ const normalizeLabel = (label: string) =>
     .trim()
     .replace(/\s+/g, " ");
 
-const toCents = (amount: number) => Math.round(amount * 100);
-
 const getGroupingKey = (transaction: ParsedTransaction) => {
   const label = transaction.source?.name ?? transaction.description;
   const normalisedLabel = normalizeLabel(label);
@@ -32,23 +34,150 @@ const getGroupingKey = (transaction: ParsedTransaction) => {
   return `${normalisedLabel}|${direction}`;
 };
 
-const isWithinMonthlyWindow = (
-  first: Date,
-  second: Date,
-  options: RecurrenceDetectionOptions
+const getMonthIndex = (date: Date) => date.getFullYear() * 12 + date.getMonth();
+
+const shouldPromotePrimary = (
+  current: ParsedTransaction,
+  candidate: ParsedTransaction
 ) => {
-  const diffDays = Math.round(Math.abs(second.getTime() - first.getTime()) / MS_PER_DAY);
-  return (
-    diffDays >= options.minDaysBetweenOccurrences &&
-    diffDays <= options.maxDaysBetweenOccurrences
-  );
+  const currentMagnitude = Math.abs(current.amount);
+  const candidateMagnitude = Math.abs(candidate.amount);
+
+  if (candidateMagnitude > currentMagnitude) {
+    return true;
+  }
+  if (candidateMagnitude < currentMagnitude) {
+    return false;
+  }
+
+  return candidate.date.getTime() > current.date.getTime();
 };
 
-const amountsWithinTolerance = (
-  first: ParsedTransaction,
-  second: ParsedTransaction,
+type MonthlyBucket = {
+  monthId: number;
+  primary: ParsedTransaction;
+  transactions: ParsedTransaction[];
+};
+
+const buildMonthlyBuckets = (
+  transactions: ParsedTransaction[]
+): MonthlyBucket[] => {
+  const buckets = new Map<number, MonthlyBucket>();
+
+  transactions.forEach((transaction) => {
+    const monthId = getMonthIndex(transaction.date);
+    const bucket = buckets.get(monthId);
+
+    if (!bucket) {
+      buckets.set(monthId, {
+        monthId,
+        primary: transaction,
+        transactions: [transaction],
+      });
+      return;
+    }
+
+    bucket.transactions.push(transaction);
+    if (shouldPromotePrimary(bucket.primary, transaction)) {
+      bucket.primary = transaction;
+    }
+  });
+
+  return Array.from(buckets.values()).sort((first, second) => first.monthId - second.monthId);
+};
+
+const median = (values: number[]): number => {
+  if (values.length === 0) {
+    return 0;
+  }
+
+  const sorted = [...values].sort((a, b) => a - b);
+  const middleIndex = Math.floor(sorted.length / 2);
+
+  if (sorted.length % 2 === 1) {
+    return sorted[middleIndex];
+  }
+
+  const lower = sorted[middleIndex - 1];
+  const upper = sorted[middleIndex];
+  return Math.round((lower + upper) / 2);
+};
+
+const selectRepresentativeForMonth = (
+  bucket: MonthlyBucket,
+  targetDay: number
+): ParsedTransaction => {
+  const fallbackDay = bucket.primary.date.getDate();
+  const referenceDay = Number.isFinite(targetDay) && targetDay > 0 ? targetDay : fallbackDay;
+
+  return bucket.transactions.reduce<ParsedTransaction>((best, candidate) => {
+    const bestDayDiff = Math.abs(best.date.getDate() - referenceDay);
+    const candidateDayDiff = Math.abs(candidate.date.getDate() - referenceDay);
+
+    if (candidateDayDiff !== bestDayDiff) {
+      return candidateDayDiff < bestDayDiff ? candidate : best;
+    }
+
+    const bestMagnitude = Math.abs(best.amount);
+    const candidateMagnitude = Math.abs(candidate.amount);
+    if (candidateMagnitude !== bestMagnitude) {
+      return candidateMagnitude > bestMagnitude ? candidate : best;
+    }
+
+    return candidate.date.getTime() > best.date.getTime() ? candidate : best;
+  }, bucket.transactions[0]);
+};
+
+const findQualifyingMonthIds = (
+  buckets: MonthlyBucket[],
   options: RecurrenceDetectionOptions
-) => Math.abs(toCents(first.amount) - toCents(second.amount)) <= options.amountToleranceCents;
+): Set<number> => {
+  const qualifying = new Set<number>();
+
+  if (buckets.length < options.minOccurrences) {
+    return qualifying;
+  }
+
+  const maxMonthGap = options.maxSkippedMonths + 1;
+  const minAllowed = Math.max(options.minDaysBetweenOccurrences - options.dayFlexToleranceDays, 1);
+
+  let run: MonthlyBucket[] = [buckets[0]];
+
+  const finalizeRun = () => {
+    if (run.length >= options.minOccurrences) {
+      run.forEach((bucket) => {
+        qualifying.add(bucket.monthId);
+      });
+    }
+  };
+
+  for (let index = 1; index < buckets.length; index += 1) {
+    const previous = buckets[index - 1];
+    const current = buckets[index];
+
+    const monthGap = current.monthId - previous.monthId;
+    const diffDays = Math.round(
+      (current.primary.date.getTime() - previous.primary.date.getTime()) / MS_PER_DAY
+    );
+
+    const maxAllowed =
+      options.maxDaysBetweenOccurrences * monthGap + options.dayFlexToleranceDays;
+
+    const withinMonthGap = monthGap >= 1 && monthGap <= maxMonthGap;
+    const withinWindow = diffDays >= minAllowed && diffDays <= maxAllowed;
+
+    if (withinMonthGap && withinWindow) {
+      run.push(current);
+    } else {
+      finalizeRun();
+      run = [current];
+    }
+  }
+
+  finalizeRun();
+
+  return qualifying;
+};
 
 export const detectRecurringTransactions = (
   transactions: ParsedTransaction[],
@@ -72,39 +201,33 @@ export const detectRecurringTransactions = (
       (a, b) => a.date.getTime() - b.date.getTime()
     );
 
-    if (sorted.length < resolvedOptions.minOccurrences) {
+    const monthlyBuckets = buildMonthlyBuckets(sorted);
+    if (monthlyBuckets.length < resolvedOptions.minOccurrences) {
       return;
     }
 
-    let runStartIndex = 0;
-    let runLength = 1;
-    const runCandidateIndices = new Set<number>();
+    const qualifyingMonthIds = findQualifyingMonthIds(monthlyBuckets, resolvedOptions);
+    if (!qualifyingMonthIds.size) {
+      return;
+    }
 
-    for (let index = 1; index < sorted.length; index += 1) {
-      const current = sorted[index];
-      const previous = sorted[index - 1];
+    const bucketById = new Map<number, MonthlyBucket>();
+    monthlyBuckets.forEach((bucket) => bucketById.set(bucket.monthId, bucket));
 
-      if (
-        isWithinMonthlyWindow(previous.date, current.date, resolvedOptions) &&
-        amountsWithinTolerance(previous, current, resolvedOptions)
-      ) {
-        runLength += 1;
-        if (runLength === 2) {
-          runCandidateIndices.add(runStartIndex);
-        }
-        runCandidateIndices.add(index);
-      } else {
-        runStartIndex = index;
-        runLength = 1;
+    const candidateDays = Array.from(qualifyingMonthIds).map((monthId) =>
+      bucketById.get(monthId)!.primary.date.getDate()
+    );
+    const representativeDay = median(candidateDays);
+
+    qualifyingMonthIds.forEach((monthId) => {
+      const bucket = bucketById.get(monthId);
+      if (!bucket) {
+        return;
       }
-    }
 
-    if (runCandidateIndices.size >= resolvedOptions.minOccurrences) {
-      runCandidateIndices.forEach((candidateIndex) => {
-        const transaction = sorted[candidateIndex];
-        recurringIds.add(transaction.id);
-      });
-    }
+      const representative = selectRepresentativeForMonth(bucket, representativeDay);
+      recurringIds.add(representative.id);
+    });
   });
 
   return recurringIds;
