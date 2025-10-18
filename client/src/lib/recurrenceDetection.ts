@@ -120,3 +120,92 @@ export const applyRecurringDetection = (
     isRecurring: recurringIds.has(transaction.id),
   }));
 };
+
+export interface RecurringSeriesSummary {
+  /** Stable identifier derived from the recurrence grouping logic */
+  groupId: string;
+  /** Transaction instance occurring within the requested month */
+  representative: ParsedTransaction;
+  /** All transaction ids belonging to this recurring series */
+  occurrenceIds: string[];
+  /** Total number of detected occurrences for the series */
+  occurrenceCount: number;
+  /** Earliest detected occurrence date */
+  firstOccurrence: Date;
+  /** Most recent detected occurrence date */
+  lastOccurrence: Date;
+}
+
+const toMonthKey = (date: Date) => `${date.getFullYear()}-${date.getMonth()}`;
+
+export const summarizeRecurringTransactionsForMonth = (
+  transactions: ParsedTransaction[],
+  monthDate: Date,
+  options: Partial<RecurrenceDetectionOptions> = {}
+): RecurringSeriesSummary[] => {
+  if (!transactions.length) {
+    return [];
+  }
+
+  const annotated = applyRecurringDetection(transactions, options);
+  const targetMonthKey = toMonthKey(monthDate);
+
+  const groups = new Map<string, ParsedTransaction[]>();
+
+  annotated.forEach((transaction) => {
+    if (!transaction.isRecurring) {
+      return;
+    }
+    const key = getGroupingKey(transaction);
+    if (!groups.has(key)) {
+      groups.set(key, []);
+    }
+    groups.get(key)!.push(transaction);
+  });
+
+  const summaries: RecurringSeriesSummary[] = [];
+
+  groups.forEach((transactionsInGroup, groupId) => {
+    if (!transactionsInGroup.length) {
+      return;
+    }
+
+    const sorted = [...transactionsInGroup].sort(
+      (first, second) => first.date.getTime() - second.date.getTime()
+    );
+
+    const representative = sorted.find(
+      (transaction) => toMonthKey(transaction.date) === targetMonthKey
+    );
+
+    if (!representative) {
+      return;
+    }
+
+    summaries.push({
+      groupId,
+      representative,
+      occurrenceIds: sorted.map((transaction) => transaction.id),
+      occurrenceCount: sorted.length,
+      firstOccurrence: sorted[0].date,
+      lastOccurrence: sorted[sorted.length - 1].date,
+    });
+  });
+
+  return summaries.sort((first, second) => {
+    const dateDiff =
+      first.representative.date.getTime() - second.representative.date.getTime();
+    if (dateDiff !== 0) {
+      return dateDiff;
+    }
+    const firstLabel = first.representative.description.toLowerCase();
+    const secondLabel = second.representative.description.toLowerCase();
+    if (firstLabel < secondLabel) {
+      return -1;
+    }
+    if (firstLabel > secondLabel) {
+      return 1;
+    }
+    return 0;
+  });
+};

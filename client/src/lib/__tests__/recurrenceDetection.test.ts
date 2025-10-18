@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { ParsedTransaction } from "@shared/schema";
-import { applyRecurringDetection, detectRecurringTransactions } from "../recurrenceDetection";
+import {
+  applyRecurringDetection,
+  detectRecurringTransactions,
+  summarizeRecurringTransactionsForMonth,
+} from "../recurrenceDetection";
 
 type TransactionOverrides = {
   id: string;
@@ -93,5 +97,56 @@ describe("applyRecurringDetection", () => {
 
     expect(recurring.every((tx) => tx.isRecurring)).toBe(true);
     expect(coffee?.isRecurring).toBe(false);
+  });
+});
+
+describe("summarizeRecurringTransactionsForMonth", () => {
+  it("returns a single summary per recurring series for the requested month", () => {
+    const transactions = [
+      createTransaction({ id: "jan", date: "2024-01-15", amount: -25, description: "Gym" }),
+      createTransaction({ id: "feb", date: "2024-02-14", amount: -25, description: "Gym" }),
+      createTransaction({ id: "mar", date: "2024-03-15", amount: -25, description: "Gym" }),
+      createTransaction({ id: "coffee", date: "2024-03-02", amount: -4, description: "Coffee" }),
+    ];
+
+    const summaries = summarizeRecurringTransactionsForMonth(
+      transactions,
+      new Date("2024-03-01")
+    );
+
+    expect(summaries).toHaveLength(1);
+    expect(summaries[0].representative.id).toBe("mar");
+    expect(summaries[0].occurrenceCount).toBe(3);
+    expect(summaries[0].occurrenceIds).toEqual(["jan", "feb", "mar"]);
+  });
+
+  it("detects recurring series when source metadata is provided", () => {
+    const transactions = [
+      createTransaction({
+        id: "jan",
+        date: "2024-01-15",
+        amount: -9.99,
+        description: "Monthly subscription",
+        source: { name: "Subscription", type: "merchant" },
+      }),
+      createTransaction({
+        id: "feb",
+        date: "2024-02-14",
+        amount: -9.99,
+        description: "Monthly subscription",
+        source: { name: "Subscription", type: "merchant" },
+      }),
+      createTransaction({
+        id: "mar",
+        date: "2024-03-15",
+        amount: -9.99,
+        description: "Monthly subscription",
+        source: { name: "Subscription", type: "merchant" },
+      }),
+    ];
+
+    const recurringIds = detectRecurringTransactions(transactions);
+
+    expect(Array.from(recurringIds).sort()).toEqual(["feb", "jan", "mar"]);
   });
 });
