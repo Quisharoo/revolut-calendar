@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
-import type { ParsedTransaction } from "@shared/schema";
+import type { ParsedTransaction } from "../../../../shared/schema";
 import { buildRecurringIcs, filterRecurringTransactionsForMonth } from "../icsExport";
+import { applyRecurringDetection } from "../recurrenceDetection";
 
 const createTransaction = (
   overrides: Partial<ParsedTransaction> = {}
@@ -19,7 +20,7 @@ const extractUids = (ics: string) =>
 
 describe("buildRecurringIcs", () => {
   it("includes recurring transactions for the target month with monthly recurrence", () => {
-    const transactions: ParsedTransaction[] = [
+    let transactions: ParsedTransaction[] = [
       createTransaction({
         id: "rent-jan",
         description: "Rent Payment",
@@ -27,7 +28,6 @@ describe("buildRecurringIcs", () => {
         amount: -1800,
         category: "Expense",
         currencySymbol: "€",
-        isRecurring: true,
       }),
       createTransaction({
         id: "rent-feb",
@@ -36,7 +36,14 @@ describe("buildRecurringIcs", () => {
         amount: -1800,
         category: "Expense",
         currencySymbol: "€",
-        isRecurring: true,
+      }),
+      createTransaction({
+        id: "rent-mar",
+        description: "Rent Payment",
+        date: new Date(2024, 2, 3),
+        amount: -1800,
+        category: "Expense",
+        currencySymbol: "€",
       }),
       createTransaction({
         id: "one-off",
@@ -44,11 +51,11 @@ describe("buildRecurringIcs", () => {
         date: new Date(2024, 0, 10),
         amount: -120,
         category: "Expense",
-        isRecurring: false,
       }),
     ];
+    transactions = applyRecurringDetection(transactions);
 
-    const ics = buildRecurringIcs(transactions, {
+    const ics = buildRecurringIcs([transactions[2]], {
       monthDate: new Date(2024, 0, 1),
       calendarName: "Recurring Transactions - January 2024",
     });
@@ -62,42 +69,47 @@ describe("buildRecurringIcs", () => {
 
     expect(ics).toContain("SUMMARY:Rent Payment (-€1\\,800.00)");
     expect(ics).toContain("DESCRIPTION:Expense • Rent Payment");
-    expect(ics).toContain("DTSTART;VALUE=DATE:20240103");
+    expect(ics).toContain("DTSTART;VALUE=DATE:20240103"); // Should match recurring day
     expect(ics).toContain("DTEND;VALUE=DATE:20240104");
     expect(ics).toContain("RRULE:FREQ=MONTHLY;INTERVAL=1;BYMONTHDAY=3");
   });
 
   it("reuses a stable UID for the same recurring transaction across months", () => {
-    const januaryRent = createTransaction({
-      id: "rent-jan-uid",
-      description: "Rent Payment",
-      date: new Date(2024, 0, 3),
-      amount: -1800,
-      category: "Expense",
-      currencySymbol: "€",
-      isRecurring: true,
-    });
-
-    const februaryRent = createTransaction({
-      id: "rent-feb-uid",
-      description: "Rent Payment",
-      date: new Date(2024, 1, 3),
-      amount: -1800,
-      category: "Expense",
-      currencySymbol: "€",
-      isRecurring: true,
-    });
-
-    const januaryIcs = buildRecurringIcs([januaryRent], {
+    const rentTxs = [
+      createTransaction({
+        id: "rent-jan-uid",
+        description: "Rent Payment",
+        date: new Date(2024, 0, 3),
+        amount: -1800,
+        category: "Expense",
+        currencySymbol: "€",
+      }),
+      createTransaction({
+        id: "rent-feb-uid",
+        description: "Rent Payment",
+        date: new Date(2024, 1, 3),
+        amount: -1800,
+        category: "Expense",
+        currencySymbol: "€",
+      }),
+      createTransaction({
+        id: "rent-mar-uid",
+        description: "Rent Payment",
+        date: new Date(2024, 2, 3),
+        amount: -1800,
+        category: "Expense",
+        currencySymbol: "€",
+      }),
+    ];
+    const annotated = applyRecurringDetection(rentTxs);
+    const januaryIcs = buildRecurringIcs(annotated, {
       monthDate: new Date(2024, 0, 1),
     });
-    const februaryIcs = buildRecurringIcs([februaryRent], {
+    const februaryIcs = buildRecurringIcs(annotated, {
       monthDate: new Date(2024, 1, 1),
     });
-
     const januaryUids = extractUids(januaryIcs);
     const februaryUids = extractUids(februaryIcs);
-
     expect(januaryUids).toHaveLength(1);
     expect(februaryUids).toHaveLength(1);
     expect(januaryUids[0]).toBe(februaryUids[0]);
@@ -113,7 +125,8 @@ describe("buildRecurringIcs", () => {
       }),
     ];
 
-    const ics = buildRecurringIcs(transactions, {
+    // No recurring series selected, so pass empty array
+    const ics = buildRecurringIcs([], {
       monthDate: new Date(2024, 0, 1),
     });
 
@@ -124,7 +137,7 @@ describe("buildRecurringIcs", () => {
   });
 
   it("skips duplicate recurring entries that share the same recurrence key", () => {
-    const transactions: ParsedTransaction[] = [
+    const gymTxs = [
       createTransaction({
         id: "gym-jan-a",
         description: "Gym Membership",
@@ -132,7 +145,6 @@ describe("buildRecurringIcs", () => {
         amount: -45,
         category: "Expense",
         currencySymbol: "$",
-        isRecurring: true,
       }),
       createTransaction({
         id: "gym-jan-b",
@@ -141,14 +153,28 @@ describe("buildRecurringIcs", () => {
         amount: -45,
         category: "Expense",
         currencySymbol: "$",
-        isRecurring: true,
+      }),
+      createTransaction({
+        id: "gym-feb",
+        description: "Gym Membership",
+        date: new Date(2024, 1, 12),
+        amount: -45,
+        category: "Expense",
+        currencySymbol: "$",
+      }),
+      createTransaction({
+        id: "gym-mar",
+        description: "Gym Membership",
+        date: new Date(2024, 2, 12),
+        amount: -45,
+        category: "Expense",
+        currencySymbol: "$",
       }),
     ];
-
-    const ics = buildRecurringIcs(transactions, {
+    const annotated = applyRecurringDetection(gymTxs);
+    const ics = buildRecurringIcs(annotated, {
       monthDate: new Date(2024, 0, 1),
     });
-
     const eventCount = (ics.match(/BEGIN:VEVENT/g) ?? []).length;
     expect(eventCount).toBe(1);
   });
@@ -181,18 +207,14 @@ describe("filterRecurringTransactionsForMonth", () => {
 
 describe("uid generation", () => {
   it("generates consistent UIDs for recurring transactions regardless of ID content", () => {
-    const transaction = createTransaction({
-      id: "###",
-      isRecurring: true,
-    });
-
-    const first = buildRecurringIcs([transaction], {
-      monthDate: new Date(Date.UTC(2024, 0, 1)),
-    });
-    const second = buildRecurringIcs([transaction], {
-      monthDate: new Date(Date.UTC(2024, 0, 1)),
-    });
-
+    const txs = [
+      createTransaction({ id: "###", description: "Recurring", date: new Date(2024, 0, 5), amount: -100 }),
+      createTransaction({ id: "$$$", description: "Recurring", date: new Date(2024, 1, 5), amount: -100 }),
+      createTransaction({ id: "@@@", description: "Recurring", date: new Date(2024, 2, 5), amount: -100 }),
+    ];
+    const annotated = applyRecurringDetection(txs);
+    const first = buildRecurringIcs(annotated, { monthDate: new Date(2024, 0, 1) });
+    const second = buildRecurringIcs(annotated, { monthDate: new Date(2024, 0, 1) });
     const [firstUid] = extractUids(first);
     const [secondUid] = extractUids(second);
     expect(firstUid).toBeDefined();
@@ -201,16 +223,13 @@ describe("uid generation", () => {
   });
 
   it("does not shift DTSTART across timezones", () => {
-    const transaction = createTransaction({
-      id: "tz-check",
-      isRecurring: true,
-      date: new Date("2024-03-01T00:30:00Z"),
-    });
-
-    const ics = buildRecurringIcs([transaction], {
-      monthDate: new Date(Date.UTC(2024, 2, 1)),
-    });
-
+    const txs = [
+      createTransaction({ id: "tz-check-1", description: "TZ Recurring", date: new Date("2024-03-01T00:30:00Z"), amount: -100 }),
+      createTransaction({ id: "tz-check-2", description: "TZ Recurring", date: new Date("2024-04-01T00:30:00Z"), amount: -100 }),
+      createTransaction({ id: "tz-check-3", description: "TZ Recurring", date: new Date("2024-05-01T00:30:00Z"), amount: -100 }),
+    ];
+    const annotated = applyRecurringDetection(txs);
+    const ics = buildRecurringIcs(annotated, { monthDate: new Date(Date.UTC(2024, 2, 1)) });
     expect(ics).toContain("DTSTART;VALUE=DATE:20240301");
     expect(ics).toContain("DTEND;VALUE=DATE:20240302");
   });

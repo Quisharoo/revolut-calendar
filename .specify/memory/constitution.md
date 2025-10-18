@@ -1,50 +1,49 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!--
+Sync Impact Report
+
+Version change: none → 1.0.0
+
+List of modified principles: all new (Code Quality First, Test with Purpose, User Experience Consistency, Performance as a Feature)
+
+Added sections: Technology Stack and Constraints, Development Workflow
+
+Removed sections: none
+
+Templates requiring updates: plan-template.md ✅ updated, tasks-template.md ✅ no update needed (tasks organized by user story, principles checked in plan), spec-template.md ✅ no update needed, agent-file-template.md ✅ no update needed, checklist-template.md ✅ no update needed
+
+Follow-up TODOs: none
+-->
+# Transaction Calendar Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### Code Quality First
+Maintain readable, modular, and well-documented codebases.
+Prefer clear design patterns and consistent coding standards over ad hoc solutions.
+Require peer review for every change touching production paths.
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+### Test with Purpose
+Mandate automated tests that validate expected behavior and guard against regressions.
+Define coverage expectations per component; investigate gaps before release.
+Preserve fast, reliable pipelines; failing or flaky tests block merges until resolved.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### User Experience Consistency
+Align implementations with established UX patterns, accessibility guidelines, and copy tone.
+Validate user flows across supported devices and locales prior to launch.
+Favor predictable interactions over novel but inconsistent behavior.
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+### Performance as a Feature
+Budget performance metrics (latency, memory, throughput) during planning.
+Profile critical paths and remediate bottlenecks before shipping.
+Track performance regressions in telemetry; treat degradations as release blockers.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+## Technology Stack and Constraints
+The application uses React 18 with TypeScript for the frontend, Node.js 20 with Express for the backend, PostgreSQL via Drizzle ORM for data storage, and Tailwind CSS with Radix UI for consistent UI/UX. All code must adhere to these technologies and their best practices.
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
-
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
-
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
-
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+## Development Workflow
+Code review requirements include verifying compliance with principles. Testing gates require passing Vitest suites with defined coverage. Deployment approval requires sign-off from quality, UX, and performance leads.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
+Constitution supersedes all other practices; Amendments require documentation, approval, migration plan. All PRs/reviews must verify compliance; Complexity must be justified; Use agents.md for runtime development guidance.
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
-
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Version**: 1.0.0 | **Ratified**: 2025-10-17 | **Last Amended**: 2025-10-17
