@@ -78,7 +78,6 @@ export default function Home() {
 
   return (
     <>
-      {/* Export Recurring Transactions button removed as duplicate flow */}
       <CalendarPage transactions={transactions} />
       <ExportModal
         transactions={transactions}
