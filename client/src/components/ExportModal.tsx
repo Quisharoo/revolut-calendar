@@ -98,9 +98,14 @@ export default function ExportModal({
     return Array.from(groups.entries());
   }, [transactions, recurringIds]);
 
+  const representativeIds = React.useMemo(
+    () => recurringGroups.map(([, arr]) => arr[arr.length - 1].id),
+    [recurringGroups]
+  );
+
   React.useEffect(() => {
-    setSelected(new Set(recurringGroups.map(([, arr]) => arr[arr.length - 1].id)));
-  }, [recurringGroups]);
+    setSelected(new Set(representativeIds));
+  }, [representativeIds]);
 
   const toggle = (id: string) => {
     setSelected((prev) => {
@@ -118,14 +123,42 @@ export default function ExportModal({
     onExport(Array.from(selected), resolvedMonthDate);
   };
 
+  const allSelected = representativeIds.length > 0 && representativeIds.every((id) => selected.has(id));
+
+  const handleToggleAll = () => {
+    if (representativeIds.length === 0) {
+      setSelected(new Set());
+      return;
+    }
+
+    setSelected((prev) => {
+      if (representativeIds.every((id) => prev.has(id))) {
+        return new Set();
+      }
+
+      return new Set(representativeIds);
+    });
+  };
+
   return (
     <Sheet open={isOpen} onOpenChange={(open: boolean) => { if (!open) onClose(); }}>
-      <SheetContent>
+      <SheetContent className="flex h-full flex-col overflow-hidden">
         <SheetTitle>Export Recurring Transactions</SheetTitle>
         <SheetDescription>
           Select recurring transactions detected from all data to include in the calendar export.
         </SheetDescription>
-        <div className="mt-4 max-h-60 overflow-auto">
+        <div className="mt-4 flex items-center justify-between gap-2">
+          <span className="text-sm text-muted-foreground">Exporting for {monthLabel}</span>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleToggleAll}
+            disabled={representativeIds.length === 0}
+          >
+            {allSelected ? 'Unselect all' : 'Select all'}
+          </Button>
+        </div>
+        <div className="mt-2 min-h-0 flex-1 overflow-auto pr-1">
           {recurringGroups.length === 0 ? (
             <p className="p-2 text-sm text-muted-foreground">
               No recurring transactions detected.
