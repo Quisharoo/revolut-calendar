@@ -330,7 +330,7 @@ export const parseRevolutCsv = (text: string): ParsedTransaction[] => {
       index !== undefined && index < cells.length ? cells[index] : "";
 
     // Helper to get the best date value with fallbacks
-  const dateValue = getValue(dateIndex) || getValue(findColumnByIncludes(["starteddate"]) as number) || getValue(findColumnByIncludes(["startdate"]) as number);
+    function getDateValue() {
       // Try main date index
       const mainDate = getValue(dateIndex);
       if (mainDate) return mainDate;
@@ -344,7 +344,7 @@ export const parseRevolutCsv = (text: string): ParsedTransaction[] => {
       if (startDate) return startDate;
       // Fallback to main date index again (may be empty)
       return getValue(dateIndex);
-    };
+    }
 
     const dateValue = getDateValue();
     const parsedDate = parseDate(dateValue);

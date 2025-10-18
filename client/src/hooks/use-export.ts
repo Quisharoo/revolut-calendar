@@ -21,6 +21,8 @@ export const useExport = () => {
       // The object URL will be automatically revoked when the document is unloaded.
       // Explicitly revoking it with a timeout is unreliable and can cancel the download.
       // URL.revokeObjectURL(url);
+      setTimeout(() => {
+        // Optionally revoke URL here if needed
       }, 0);
       return { success: true, fileName };
     } catch (error) {
