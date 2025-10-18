@@ -1,8 +1,7 @@
-import type { ParsedTransaction } from "@shared/schema";
-import { applyRecurringDetection } from "./recurrenceDetection";
-import { DEFAULT_CURRENCY_SYMBOL, formatCurrency } from "@/lib/transactionUtils";
-
-const CALENDAR_PROD_ID = "-//TransactionCalendar//Recurring Export//EN";
+import { ICS_CALENDAR_PROD_ID, APP_TIMEZONE, DEFAULT_CURRENCY_SYMBOL } from "@shared/constants";
+import { escapeIcsText, foldIcsLines } from "@shared/utils";
+import type { RecurringSeries } from "@shared/schema";
+import { formatCurrency } from "@/lib/transactionUtils";
 
 const ensureTwoDigits = (value: number) => value.toString().padStart(2, "0");
 
@@ -23,42 +22,15 @@ const formatDateAsUtcTimestamp = (date: Date) => {
   return `${year}${month}${day}T${hours}${minutes}${seconds}Z`;
 };
 
-const escapeIcsText = (value: string) =>
-  value.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\n/g, "\\n");
-
 const addUtcDays = (date: Date, days: number) => {
-  const result = new Date(date);
-  result.setUTCDate(result.getUTCDate() + days);
-  return result;
+  const clone = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  clone.setUTCDate(clone.getUTCDate() + days);
+  return clone;
 };
 
-const buildMonthlyRule = (date: Date) => {
-  const day = date.getDate();
-  return `FREQ=MONTHLY;INTERVAL=1;BYMONTHDAY=${day}`;
-};
+const buildMonthlyRule = (date: Date) => `FREQ=MONTHLY;BYMONTHDAY=${date.getDate()}`;
 
-const resolveSummary = (transaction: ParsedTransaction) => {
-  const label = transaction.source?.name ?? transaction.description;
-  const formattedAmount = formatCurrency(
-    transaction.amount,
-    transaction.currencySymbol ?? DEFAULT_CURRENCY_SYMBOL
-  );
-  return `${label} (${formattedAmount})`;
-};
-
-const resolveDescription = (transaction: ParsedTransaction) => {
-  const direction = transaction.amount >= 0 ? "Income" : "Expense";
-  return `${direction} • ${transaction.description}`;
-};
-
-const normalizeTextForKey = (value: string) =>
-  value
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, " ")
-    .replace(/[^a-z0-9 ]/g, "");
-
-const toSlug = (value: string) =>
+const normalizeForSlug = (value: string) =>
   value
     .trim()
     .toLowerCase()
@@ -75,133 +47,125 @@ const hashString = (value: string) => {
   return (hash >>> 0).toString(36);
 };
 
-const buildRecurringKey = (transaction: ParsedTransaction) => {
-  const descriptorSource =
-    transaction.source?.identifier ??
-    transaction.source?.name ??
-    transaction.description;
-  const normalizedDescriptor = normalizeTextForKey(descriptorSource);
-  const normalizedDescription = normalizeTextForKey(transaction.description);
-  const descriptor =
-    normalizedDescriptor || normalizedDescription || "recurring-transaction";
-
-  const amount = Math.abs(transaction.amount).toFixed(2);
-  const currency = (transaction.currencySymbol ?? DEFAULT_CURRENCY_SYMBOL)
-    .trim()
-    .toLowerCase();
-  const direction = transaction.amount >= 0 ? "credit" : "debit";
-  const sourceType = transaction.source?.type ?? "unknown";
-
-  return [descriptor, amount, currency, direction, sourceType].join("|");
+const buildSeriesUid = (series: RecurringSeries) => {
+  const descriptor = normalizeForSlug(series.representative.source?.name ?? series.representative.description);
+  const hash = hashString(`${series.id}|${series.representative.id}`);
+  const prefix = descriptor ? descriptor.slice(0, 48) : "recurring";
+  return `${prefix}-${hash}@transactioncalendar`;
 };
 
-const buildRecurringUid = (transaction: ParsedTransaction) => {
-  const key = buildRecurringKey(transaction);
-  const slugCandidate =
-    toSlug(transaction.source?.name ?? transaction.description) || "recurring";
-  const slug = slugCandidate.slice(0, 48);
-  const hash = hashString(key);
-  const idPart = [slug, hash].filter(Boolean).join("-");
-  return `${idPart}@transactioncalendar`;
+const resolveSummary = (series: RecurringSeries) => {
+  const label = series.representative.source?.name ?? series.representative.description;
+  const formattedAmount = formatCurrency(
+    series.representative.amount,
+    series.representative.currencySymbol ?? DEFAULT_CURRENCY_SYMBOL
+  );
+  return `${label} (${formattedAmount})`;
 };
 
-const buildUid = (transaction: ParsedTransaction) => {
-  if (transaction.isRecurring) {
-    return buildRecurringUid(transaction);
-  }
-
-  const safeId = transaction.id.replace(/[^a-zA-Z0-9-]/g, "");
-  if (safeId.length > 0) {
-    return `${safeId}@transactioncalendar`;
-  }
-
-  const fallbackSeed = [
-    normalizeTextForKey(transaction.description) || "transaction",
-    transaction.date.toISOString(),
-    Math.abs(transaction.amount).toFixed(2),
-    (transaction.currencySymbol ?? DEFAULT_CURRENCY_SYMBOL).trim().toLowerCase(),
-  ].join("|");
-  const deterministicPart = hashString(fallbackSeed);
-
-  return `auto-${deterministicPart}@transactioncalendar`;
+const resolveDescription = (series: RecurringSeries) => {
+  const direction = series.representative.amount >= 0 ? "Income" : "Expense";
+  const occurrences = series.transactions.length;
+  const first = series.transactions[0];
+  const last = series.transactions[series.transactions.length - 1];
+  return [
+    `${direction} • ${series.representative.description}`,
+    `Occurrences: ${occurrences}`,
+    `Span: ${first.date.toISOString().slice(0, 10)} → ${last.date
+      .toISOString()
+      .slice(0, 10)}`,
+  ].join("\n");
 };
 
-const createUtcDate = (year: number, monthIndex: number, day: number) =>
-  new Date(Date.UTC(year, monthIndex, day));
-
-const getCalendarYearMonth = (date: Date) => ({
-  year: date.getFullYear(),
-  month: date.getMonth(),
-});
-
-const isSameCalendarMonth = (date: Date, target: { year: number; month: number }) =>
-  date.getFullYear() === target.year && date.getMonth() === target.month;
-
-export const filterRecurringTransactionsForMonth = (
-  transactions: ParsedTransaction[],
-  monthDate: Date
-) => {
-  const target = getCalendarYearMonth(monthDate);
-  return transactions.filter(
-    (transaction) => transaction.isRecurring && isSameCalendarMonth(transaction.date, target)
+const pickOccurrenceForMonth = (series: RecurringSeries, monthDate: Date) => {
+  const targetYear = monthDate.getFullYear();
+  const targetMonth = monthDate.getMonth();
+  return series.transactions.find(
+    (transaction) =>
+      transaction.date.getFullYear() === targetYear &&
+      transaction.date.getMonth() === targetMonth
   );
 };
-
-// Exported function for recurring ICS export
 
 export interface BuildRecurringIcsOptions {
   monthDate: Date;
   calendarName?: string;
-  recurrenceOptions?: Partial<import("./recurrenceDetection").RecurrenceDetectionOptions>;
+  timezone?: string;
+  selectedSeriesIds?: string[];
 }
 
+export interface BuildRecurringIcsStats {
+  eventCount: number;
+  exportedSeriesIds: string[];
+  skippedSeriesIds: string[];
+}
+
+export interface BuildRecurringIcsResult {
+  icsText: string;
+  stats: BuildRecurringIcsStats;
+}
 
 export const buildRecurringIcs = (
+  series: RecurringSeries[],
+  {
+    monthDate,
+    calendarName = "Recurring Transactions",
+    timezone = APP_TIMEZONE,
+    selectedSeriesIds,
+  }: BuildRecurringIcsOptions
+): BuildRecurringIcsResult => {
+  const timestamp = formatDateAsUtcTimestamp(new Date());
 
-  representativeTransactions: ParsedTransaction[],
-  { monthDate, calendarName = "Recurring Transactions" }: BuildRecurringIcsOptions
-) => {
-  // Use the correct recurring day-of-month for each event
-  const { year: targetYear, month: targetMonth } = getCalendarYearMonth(monthDate);
+  const filteredSeries = Array.isArray(selectedSeriesIds)
+    ? series.filter((entry) => selectedSeriesIds.includes(entry.id))
+    : series;
 
-  const lines: string[] = [
+  const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    `PRODID:${CALENDAR_PROD_ID}`,
+    "CALSCALE:GREGORIAN",
+    `PRODID:${ICS_CALENDAR_PROD_ID}`,
     `X-WR-CALNAME:${escapeIcsText(calendarName)}`,
+    `X-WR-TIMEZONE:${escapeIcsText(timezone)}`,
   ];
 
-  const exportTimestamp = formatDateAsUtcTimestamp(new Date());
-  const emittedRecurringKeys = new Set<string>();
+  const exportedSeriesIds: string[] = [];
+  const skippedSeriesIds: string[] = [];
 
-  representativeTransactions.forEach((transaction) => {
-    const recurringKey = buildRecurringKey(transaction);
-    if (emittedRecurringKeys.has(recurringKey)) {
+  filteredSeries.forEach((entry) => {
+    const occurrence = pickOccurrenceForMonth(entry, monthDate);
+    if (!occurrence) {
+      skippedSeriesIds.push(entry.id);
       return;
     }
-    emittedRecurringKeys.add(recurringKey);
 
-    // Use the day-of-month from the representative transaction
-    const recurringDay = transaction.date.getDate();
-    const startDate = createUtcDate(targetYear, targetMonth, recurringDay);
-    const endDate = addUtcDays(startDate, 1);
-    // Recurrence: monthly, on the same day-of-month as the representative
-    const rrule = buildMonthlyRule(transaction.date);
+    const start = new Date(Date.UTC(occurrence.date.getFullYear(), occurrence.date.getMonth(), occurrence.date.getDate()));
+    const end = addUtcDays(start, 1);
 
-    lines.push(
+    const eventLines = [
       "BEGIN:VEVENT",
-      `UID:${buildUid(transaction)}`,
-      `DTSTAMP:${exportTimestamp}`,
-      `SUMMARY:${escapeIcsText(resolveSummary(transaction))}`,
-      `DESCRIPTION:${escapeIcsText(resolveDescription(transaction))}`,
-      `DTSTART;VALUE=DATE:${formatDateAsDateValue(startDate)}`,
-      `DTEND;VALUE=DATE:${formatDateAsDateValue(endDate)}`,
-      `RRULE:${rrule}`,
-      "END:VEVENT"
-    );
+      `UID:${buildSeriesUid(entry)}`,
+      `DTSTAMP:${timestamp}`,
+      `SUMMARY:${escapeIcsText(resolveSummary({ ...entry, representative: occurrence }))}`,
+      `DESCRIPTION:${escapeIcsText(resolveDescription({ ...entry, representative: occurrence }))}`,
+      `DTSTART;VALUE=DATE:${formatDateAsDateValue(start)}`,
+      `DTEND;VALUE=DATE:${formatDateAsDateValue(end)}`,
+      `RRULE:${buildMonthlyRule(occurrence.date)}`,
+      "END:VEVENT",
+    ];
+
+    exportedSeriesIds.push(entry.id);
+    foldIcsLines(eventLines).forEach((line) => lines.push(line));
   });
 
   lines.push("END:VCALENDAR");
-  return lines.join("\r\n");
-};
 
+  return {
+    icsText: lines.join("\r\n"),
+    stats: {
+      eventCount: exportedSeriesIds.length,
+      exportedSeriesIds,
+      skippedSeriesIds,
+    },
+  };
+};

@@ -1,3 +1,6 @@
+import {
+  DEFAULT_CURRENCY_SYMBOL,
+} from "@shared/constants";
 import type {
   ParsedTransaction,
   TransactionSource,
@@ -26,8 +29,6 @@ export interface DailySummary {
   groups: DailyTransactionGroup[];
   currencySymbol: string;
 }
-
-export const DEFAULT_CURRENCY_SYMBOL = "$";
 
 export const getCategoryColor = (category: string): string => {
   switch (category) {
@@ -61,6 +62,8 @@ export const getCategoryDotColor = (category: string): string => {
       return "bg-foreground";
   }
 };
+
+export { DEFAULT_CURRENCY_SYMBOL };
 
 export const formatCurrency = (
   amount: number,

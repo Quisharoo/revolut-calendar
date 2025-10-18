@@ -5,7 +5,6 @@ import type {
   TransactionSourceType,
 } from "@shared/schema";
 import { DEFAULT_CURRENCY_SYMBOL } from "./transactionUtils";
-import { applyRecurringDetection } from "./recurrenceDetection";
 
 const NORMALIZE_REGEX = /[^a-z0-9]/g;
 
@@ -404,7 +403,7 @@ export const parseRevolutCsv = (text: string): ParsedTransaction[] => {
     });
   });
 
-  return applyRecurringDetection(transactions);
+  return transactions;
 };
 
 export const loadRevolutCsv = async (file: File): Promise<ParsedTransaction[]> => {
