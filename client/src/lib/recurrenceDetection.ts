@@ -1,19 +1,20 @@
 import type { ParsedTransaction } from "@shared/schema";
 
-interface RecurrenceDetectionOptions {
+export interface RecurrenceDetectionOptions {
   minDaysBetweenOccurrences: number;
   maxDaysBetweenOccurrences: number;
   minOccurrences: number;
-  amountToleranceCents: number;
+  amountTolerancePercent: number; // e.g. 2 = 2% tolerance
   dayFlexToleranceDays: number;
   maxSkippedMonths: number;
+  groupingSubstrings?: string[]; // if set, group by substring match (case-insensitive)
 }
 
 const DEFAULT_OPTIONS: RecurrenceDetectionOptions = {
   minDaysBetweenOccurrences: 27,
   maxDaysBetweenOccurrences: 33,
   minOccurrences: 3,
-  amountToleranceCents: 100000, // 1000 EUR tolerance to allow varying amounts as in tests
+  amountTolerancePercent: 2, // 2% tolerance by default
   dayFlexToleranceDays: 4,
   maxSkippedMonths: 6,
 };
@@ -30,10 +31,21 @@ const normalizeLabel = (label: string) =>
     .trim()
     .replace(/\s+/g, " ");
 
-const getGroupingKey = (transaction: ParsedTransaction) => {
+export const getGroupingKey = (
+  transaction: ParsedTransaction,
+  groupingSubstrings?: string[]
+) => {
   const label = transaction.source?.name ?? transaction.description;
   const normalisedLabel = normalizeLabel(label);
   const direction = transaction.amount >= 0 ? "in" : "out";
+  if (groupingSubstrings && groupingSubstrings.length > 0) {
+    const found = groupingSubstrings.find((substr) =>
+      normalisedLabel.includes(substr.toLowerCase())
+    );
+    if (found) {
+      return `${found.toLowerCase()}|${direction}`;
+    }
+  }
   return `${normalisedLabel}|${direction}`;
 };
 
@@ -190,7 +202,7 @@ export const detectRecurringTransactions = (
   const grouped = new Map<string, ParsedTransaction[]>();
 
   transactions.forEach((transaction) => {
-    const key = getGroupingKey(transaction);
+    const key = getGroupingKey(transaction, resolvedOptions.groupingSubstrings);
     if (!grouped.has(key)) {
       grouped.set(key, []);
     }
@@ -200,10 +212,13 @@ export const detectRecurringTransactions = (
   const recurringIds = new Set<string>();
 
   grouped.forEach((groupTransactions) => {
-    const sorted = [...groupTransactions].sort(
-      (a, b) => a.date.getTime() - b.date.getTime()
-    );
+    // --- Amount tolerance as percentage ---
+    const absAmounts = groupTransactions.map((t) => Math.abs(t.amount));
+    const medianAmount = median(absAmounts);
+    const tolerance = medianAmount * (resolvedOptions.amountTolerancePercent / 100);
+    const filtered = groupTransactions.filter((t) => Math.abs(Math.abs(t.amount) - medianAmount) <= tolerance);
 
+    const sorted = [...filtered].sort((a, b) => a.date.getTime() - b.date.getTime());
     const monthlyBuckets = buildMonthlyBuckets(sorted);
     if (monthlyBuckets.length < resolvedOptions.minOccurrences) {
       return;

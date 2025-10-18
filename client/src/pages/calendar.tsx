@@ -1,6 +1,7 @@
+import MonthNavigation from "@/components/MonthNavigation";
 import { useState, useMemo, useCallback } from "react";
 import type { ParsedTransaction } from "@shared/schema";
-import MonthNavigation from "@/components/MonthNavigation";
+import MonthNaviDogation from "@/components/MonthNavigation";
 import CalendarGrid from "@/components/CalendarGrid";
 import InsightsSidebar from "@/components/InsightsSidebar";
 import FilterPanel, { type FilterState } from "@/components/FilterPanel";
@@ -10,7 +11,9 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useToast } from "@/hooks/use-toast";
-import { buildRecurringIcs, filterRecurringTransactionsForMonth } from "@/lib/icsExport";
+import { buildRecurringIcs } from "@/lib/icsExport";
+import { detectRecurringTransactions, getGroupingKey } from "@/lib/recurrenceDetection";
+import ExportModal from "@/components/ExportModal";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { Download, Filter } from "lucide-react";
 import RangeSummaryDrawer from "@/components/RangeSummaryDrawer";
@@ -146,10 +149,7 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
     );
   }, [filteredTransactions, currentDate]);
 
-  const recurringTransactionsInMonth = useMemo(
-    () => filterRecurringTransactionsForMonth(transactions, currentDate),
-    [transactions, currentDate]
-  );
+  // recurringTransactionsInMonth removed; handled by ExportModal
 
   const rangeTransactions = useMemo(
     () => filterTransactionsInRange(filteredTransactions, selectedRange),
@@ -196,42 +196,53 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
     }
   }, [rangeTransactions, toast]);
 
-  const handleExportRecurring = () => {
-    const monthLabel = currentDate.toLocaleDateString("en-US", {
-      month: "long",
-      year: "numeric",
-    });
+  const [isExportModalOpen, setExportModalOpen] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
 
-    if (recurringTransactionsInMonth.length === 0) {
-      toast({
-        title: "No recurring transactions",
-        description: `There are no recurring transactions in ${monthLabel}.`,
-      });
-      return;
-    }
+  const handleExportModalOpen = () => setExportModalOpen(true);
+  const handleExportModalClose = () => setExportModalOpen(false);
 
+  const handleExportRecurring = (selectedIds: string[], monthDate: Date) => {
+    setIsGenerating(true);
     try {
-      const icsContent = buildRecurringIcs(transactions, {
-        monthDate: currentDate,
+      // Group recurring transactions by recurrence group
+      const recurringIds = detectRecurringTransactions(transactions);
+      const recurringGroups = new Map<string, ParsedTransaction[]>();
+      transactions.forEach((tx) => {
+        if (!recurringIds.has(tx.id)) return;
+        const key = getGroupingKey(tx);
+        if (!recurringGroups.has(key)) recurringGroups.set(key, []);
+        recurringGroups.get(key)!.push(tx);
+      });
+      // Sort each group by date
+      recurringGroups.forEach((arr: ParsedTransaction[]) => arr.sort((a: ParsedTransaction, b: ParsedTransaction) => a.date.getTime() - b.date.getTime()));
+      // For each selected id, find its group and take the representative (last occurrence)
+      const representatives = Array.from(recurringGroups.values())
+        .map((group) => group[group.length - 1])
+        .filter((tx) => selectedIds.includes(tx.id));
+
+      const monthLabel = monthDate.toLocaleDateString("en-US", {
+        month: "long",
+        year: "numeric",
+      });
+      const icsContent = buildRecurringIcs(representatives, {
+        monthDate,
         calendarName: `Recurring Transactions - ${monthLabel}`,
       });
-
       const blob = new Blob([icsContent], {
         type: "text/calendar;charset=utf-8",
       });
       const downloadUrl = URL.createObjectURL(blob);
       const link = document.createElement("a");
-      const fileName = `recurring-transactions-${currentDate.getFullYear()}-${String(
-        currentDate.getMonth() + 1
+      const fileName = `recurring-transactions-${monthDate.getFullYear()}-${String(
+        monthDate.getMonth() + 1
       ).padStart(2, "0")}.ics`;
-
       link.href = downloadUrl;
       link.download = fileName;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       setTimeout(() => URL.revokeObjectURL(downloadUrl), 0);
-
       toast({
         title: "Calendar exported",
         description: `Recurring transactions for ${monthLabel} saved to ${fileName}.`,
@@ -243,6 +254,9 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
         title: "Export failed",
         description: "Unable to create the calendar file. Please try again.",
       });
+    } finally {
+      setIsGenerating(false);
+      setExportModalOpen(false);
     }
   };
 
@@ -257,7 +271,7 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
           <div className="flex flex-col gap-6 lg:flex-row">
             {/* Only render the mobile layout when below the desktop breakpoint.
                 PanelGroup applies an inline display value so relying solely on utility
-                classes like `hidden` can leave it visible in Safari/iOS. */}
+                {/* classes like `hidden` can leave it visible in Safari/iOS. */}
             {!isDesktop ? (
               <div className="flex-1 space-y-6">
                 <div className="flex items-center gap-2">
@@ -276,8 +290,7 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={handleExportRecurring}
-                            disabled={recurringTransactionsInMonth.length === 0}
+                            onClick={handleExportModalOpen}
                             data-testid="button-export-ics"
                           >
                             <Download className="w-4 h-4 mr-2" />
@@ -345,8 +358,7 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={handleExportRecurring}
-                              disabled={recurringTransactionsInMonth.length === 0}
+                              onClick={handleExportModalOpen}
                               data-testid="button-export-ics"
                             >
                               <Download className="w-4 h-4 mr-2" />
@@ -418,6 +430,14 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
           />
         </>
       )}
+      <ExportModal
+        transactions={transactions}
+        isOpen={isExportModalOpen}
+        onClose={handleExportModalClose}
+        onExport={handleExportRecurring}
+        isGenerating={isGenerating}
+        monthDate={currentDate}
+      />
       <RangeSummaryDrawer
         open={isRangeDrawerOpen}
         onOpenChange={setRangeDrawerOpen}

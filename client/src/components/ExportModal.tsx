@@ -3,8 +3,8 @@ import type { ParsedTransaction } from '@shared/schema';
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import {
-  summarizeRecurringTransactionsForMonth,
-  type RecurringSeriesSummary,
+  detectRecurringTransactions,
+  getGroupingKey,
 } from '@/lib/recurrenceDetection';
 import { DEFAULT_CURRENCY_SYMBOL, formatCurrency } from '@/lib/transactionUtils';
 
@@ -21,17 +21,11 @@ const formatMonth = (date: Date) =>
     year: 'numeric',
   });
 
-const buildOccurrenceSummary = (summary: RecurringSeriesSummary) => {
-  const { occurrenceCount, firstOccurrence, lastOccurrence, representative } = summary;
-  const spanLabel =
-    firstOccurrence.getFullYear() === lastOccurrence.getFullYear() &&
-    firstOccurrence.getMonth() === lastOccurrence.getMonth()
-      ? formatMonth(firstOccurrence)
-      : `${formatMonth(firstOccurrence)} – ${formatMonth(lastOccurrence)}`;
-
-  return `${formatDate(representative.date)} • ${occurrenceCount} occurrence${
-    occurrenceCount === 1 ? '' : 's'
-  } (${spanLabel})`;
+const buildOccurrenceSummary = (occurrences: ParsedTransaction[]) => {
+  if (!occurrences.length) return '';
+  const first = occurrences[0];
+  const last = occurrences[occurrences.length - 1];
+  return `${formatDate(first.date)} • ${occurrences.length} occurrence${occurrences.length === 1 ? '' : 's'} (${formatMonth(first.date)} – ${formatMonth(last.date)})`;
 };
 
 interface ExportModalProps {
@@ -88,17 +82,25 @@ export default function ExportModal({
     [resolvedMonthDate]
   );
 
-  const recurringSummaries = React.useMemo(
-    () =>
-      summarizeRecurringTransactionsForMonth(transactions, resolvedMonthDate),
-    [transactions, resolvedMonthDate]
-  );
+  // Detect recurring transactions from all data
+  const recurringIds = React.useMemo(() => detectRecurringTransactions(transactions), [transactions]);
+  // Group recurring transactions by recurrence group
+  const recurringGroups = React.useMemo(() => {
+    const groups = new Map<string, ParsedTransaction[]>();
+    transactions.forEach((tx) => {
+      if (!recurringIds.has(tx.id)) return;
+      const key = getGroupingKey(tx);
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(tx);
+    });
+    // Sort each group by date
+    groups.forEach((arr) => arr.sort((a, b) => a.date.getTime() - b.date.getTime()));
+    return Array.from(groups.entries());
+  }, [transactions, recurringIds]);
 
   React.useEffect(() => {
-    setSelected(
-      new Set(recurringSummaries.map((summary) => summary.representative.id))
-    );
-  }, [recurringSummaries]);
+    setSelected(new Set(recurringGroups.map(([_, arr]) => arr[arr.length - 1].id)));
+  }, [recurringGroups]);
 
   const toggle = (id: string) => {
     setSelected((prev) => {
@@ -121,27 +123,25 @@ export default function ExportModal({
       <SheetContent>
         <SheetTitle>Export Recurring Transactions</SheetTitle>
         <SheetDescription>
-          Select recurring transactions detected for {monthLabel} to include in the
-          calendar export.
+          Select recurring transactions detected from all data to include in the calendar export.
         </SheetDescription>
         <div className="mt-4 max-h-60 overflow-auto">
-          {recurringSummaries.length === 0 ? (
+          {recurringGroups.length === 0 ? (
             <p className="p-2 text-sm text-muted-foreground">
-              No recurring transactions detected for this month.
+              No recurring transactions detected.
             </p>
           ) : (
-            recurringSummaries.map((summary) => {
-              const { representative } = summary;
+            recurringGroups.map(([groupId, occurrences]) => {
+              const representative = occurrences[occurrences.length - 1];
               const id = representative.id;
               const label = representative.source?.name ?? representative.description;
               const amountLabel = formatCurrency(
                 representative.amount,
                 representative.currencySymbol ?? DEFAULT_CURRENCY_SYMBOL
               );
-
               return (
                 <label
-                  key={summary.groupId}
+                  key={groupId}
                   className="flex items-center gap-2 p-2 hover:bg-muted"
                 >
                   <input
@@ -158,7 +158,7 @@ export default function ExportModal({
                       </span>
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      {buildOccurrenceSummary(summary)}
+                      {buildOccurrenceSummary(occurrences)}
                     </div>
                   </div>
                 </label>
@@ -170,9 +170,7 @@ export default function ExportModal({
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
           <Button
             onClick={handleExport}
-            disabled={
-              isGenerating || selected.size === 0 || recurringSummaries.length === 0
-            }
+            disabled={isGenerating || selected.size === 0 || recurringGroups.length === 0}
           >
             {isGenerating ? 'Generating...' : 'Export'}
           </Button>
