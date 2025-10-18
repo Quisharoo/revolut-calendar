@@ -77,8 +77,10 @@ const buildGroupKey = (transaction: Transaction) => {
   return `${normalizedLabel}|${direction}|${toleranceBand}`;
 };
 
-const averageAmount = (transactions: Transaction[]) =>
-  transactions.reduce((sum, tx) => sum + tx.amount, 0) / transactions.length;
+const averageAmount = (transactions: Transaction[]) => {
+  if (transactions.length === 0) return 0;
+  return transactions.reduce((sum, tx) => sum + tx.amount, 0) / transactions.length;
+};
 
 const ensureSeries = (rawSeries: RecurringSeries[]): RecurringSeries[] =>
   rawSeries.map((series) => RecurringSeriesSchema.parse(series));
