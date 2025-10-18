@@ -18,19 +18,9 @@ export const useExport = () => {
       a.download = fileName;
       document.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
-      // revokeObjectURL may not exist in some JS DOM/test environments; guard the call
-      setTimeout(() => {
-        try {
-          if (typeof URL.revokeObjectURL === 'function') {
-            URL.revokeObjectURL(url);
-          }
-        } catch (e) {
-          // swallow errors during cleanup in environments that don't fully implement URL
-          // this keeps tests from failing due to environment limitations
-          // eslint-disable-next-line no-console
-          console.debug('revokeObjectURL unavailable or failed', e);
-        }
+      // The object URL will be automatically revoked when the document is unloaded.
+      // Explicitly revoking it with a timeout is unreliable and can cancel the download.
+      // URL.revokeObjectURL(url);
       }, 0);
       return { success: true, fileName };
     } catch (error) {
