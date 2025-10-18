@@ -16,6 +16,7 @@ interface CalendarGridProps {
   onDayClick?: (date: Date, transactions: ParsedTransaction[]) => void;
   selectedRange?: { start: Date; end: Date } | null;
   onRangeSelect?: (range: { start: Date; end: Date }) => void;
+  touchRangeEnabled?: boolean;
 }
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -39,6 +40,7 @@ export default function CalendarGrid({
   onDayClick,
   selectedRange,
   onRangeSelect,
+  touchRangeEnabled = false,
 }: CalendarGridProps) {
   const monthDays = useMemo(
     () => getMonthDays(currentDate.getFullYear(), currentDate.getMonth()),
@@ -47,18 +49,50 @@ export default function CalendarGrid({
   const summariesByDate = summarizeTransactionsByDate(transactions);
 
   const [dragState, setDragState] = useState<DragState | null>(null);
+  const [pendingTouchStart, setPendingTouchStart] = useState<number | null>(
+    null
+  );
+
+  const updateDragHover = useCallback((clientX: number, clientY: number) => {
+    setDragState((state) => {
+      if (!state) {
+        return state;
+      }
+
+      const target = document.elementFromPoint(clientX, clientY);
+      const cellElement = target?.closest("[data-cell-index]");
+
+      if (!cellElement) {
+        return state;
+      }
+
+      const index = parseInt(
+        cellElement.getAttribute("data-cell-index") ?? "0",
+        10
+      );
+
+      if (Number.isNaN(index) || state.endIndex === index) {
+        return state;
+      }
+
+      const hasMoved = state.hasMoved || index !== state.startIndex;
+      return { ...state, endIndex: index, hasMoved };
+    });
+  }, []);
 
   const finalizeSelection = useCallback(
-    (pointerId: number, finalIndex?: number) => {
-      
+    (pointerId: number, finalIndex?: number, pointerType?: string) => {
       let range: { start: Date; end: Date } | null = null;
+      let nextPendingTouchStart: number | null | undefined;
+
       setDragState((state) => {
         if (!state || state.pointerId !== pointerId) {
           return state;
         }
 
         const resolvedEndIndex = finalIndex ?? state.endIndex;
-        const hasDragged = state.hasMoved || resolvedEndIndex !== state.startIndex;
+        const hasDragged =
+          state.hasMoved || resolvedEndIndex !== state.startIndex;
 
         if (hasDragged) {
           const ordered = orderIndices(state.startIndex, resolvedEndIndex);
@@ -66,16 +100,30 @@ export default function CalendarGrid({
             start: monthDays[ordered.startIndex],
             end: monthDays[ordered.endIndex],
           };
+          nextPendingTouchStart = null;
+        } else if (pointerType === "touch" && touchRangeEnabled) {
+          nextPendingTouchStart = state.startIndex;
+        } else {
+          nextPendingTouchStart = null;
         }
 
         return null;
       });
 
+      if (nextPendingTouchStart !== undefined) {
+        setPendingTouchStart(nextPendingTouchStart);
+      } else if (pointerType && pointerType !== "touch") {
+        setPendingTouchStart(null);
+      }
+
       if (range) {
+        if (touchRangeEnabled) {
+          setPendingTouchStart(null);
+        }
         onRangeSelect?.(range);
       }
     },
-    [monthDays, onRangeSelect]
+    [monthDays, onRangeSelect, touchRangeEnabled]
   );
 
   useEffect(() => {
@@ -85,7 +133,7 @@ export default function CalendarGrid({
 
     const handlePointerCancel = (event: PointerEvent) => {
       if (event.pointerId === dragState.pointerId) {
-        finalizeSelection(event.pointerId);
+        finalizeSelection(event.pointerId, undefined, event.pointerType);
       }
     };
 
@@ -97,6 +145,35 @@ export default function CalendarGrid({
       window.removeEventListener("pointercancel", handlePointerCancel);
     };
   }, [dragState, finalizeSelection]);
+
+  useEffect(() => {
+    if (!dragState) {
+      return;
+    }
+
+    const handlePointerMove = (event: PointerEvent) => {
+      if (event.pointerId !== dragState.pointerId) {
+        return;
+      }
+
+      updateDragHover(event.clientX, event.clientY);
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+    };
+  }, [dragState, updateDragHover]);
+
+  useEffect(() => {
+    setPendingTouchStart(null);
+  }, [monthDays]);
+
+  useEffect(() => {
+    if (!touchRangeEnabled) {
+      setPendingTouchStart(null);
+    }
+  }, [touchRangeEnabled]);
 
   const selectedRangeIndices = useMemo(() => {
     if (!selectedRange) {
@@ -119,7 +196,9 @@ export default function CalendarGrid({
 
   const previewRange = dragState
     ? orderIndices(dragState.startIndex, dragState.endIndex)
-    : null;
+    : touchRangeEnabled && pendingTouchStart !== null
+      ? { startIndex: pendingTouchStart, endIndex: pendingTouchStart }
+      : null;
 
   return (
     <div className="bg-card rounded-lg border border-card-border">
@@ -137,31 +216,15 @@ export default function CalendarGrid({
             ))}
           </div>
           <div
-            className="grid grid-cols-7 auto-rows-[minmax(220px,auto)] sm:auto-rows-[minmax(200px,auto)] lg:auto-rows-[minmax(180px,auto)]"
+            className="grid grid-cols-7 auto-rows-[minmax(220px,auto)] sm:auto-rows-[minmax(200px,auto)] lg:auto-rows-[minmax(180px,auto)] touch-pan-y"
             onPointerMove={(event) => {
-          if (!dragState || dragState.pointerId !== event.pointerId) {
-            return;
-          }
-
-          // Find which cell the pointer is over
-          const target = document.elementFromPoint(event.clientX, event.clientY);
-          const cellElement = target?.closest('[data-cell-index]');
-          
-          if (cellElement) {
-            const index = parseInt(cellElement.getAttribute('data-cell-index') || '0', 10);
-            
-            setDragState((state) => {
-              if (!state || state.endIndex === index) {
-                return state;
+              if (!dragState || dragState.pointerId !== event.pointerId) {
+                return;
               }
-              
-              console.log("[CalendarGrid] Drag moved to cell", index);
-              const hasMoved = state.hasMoved || index !== state.startIndex;
-              return { ...state, endIndex: index, hasMoved };
-            });
-          }
-        }}
-      >
+
+              updateDragHover(event.clientX, event.clientY);
+            }}
+          >
         {monthDays.map((date, index) => {
           const dateKey = getLocalDateKey(date);
           const summary: DailySummary = summariesByDate.get(dateKey) || {
@@ -182,6 +245,7 @@ export default function CalendarGrid({
           );
           const isConfirmedRange =
             !dragState &&
+            (!touchRangeEnabled || pendingTouchStart === null) &&
             Boolean(
               selectedRangeIndices &&
                 index >= selectedRangeIndices.startIndex &&
@@ -208,33 +272,67 @@ export default function CalendarGrid({
               isInRange={isInRange}
               isRangeEdge={isRangeEdge}
               isPreview={isPreview}
-              disableClick={dragState?.hasMoved ?? false}
+              disableClick={
+                (dragState?.hasMoved ?? false) ||
+                (touchRangeEnabled && pendingTouchStart !== null)
+              }
               cellIndex={index}
               onSelect={(selectedDate, selectedSummary) =>
                 onDayClick?.(selectedDate, selectedSummary.transactions)
               }
               onPointerDown={(event) => {
                 const isMouse = event.pointerType === "mouse";
-                
+                const isTouch = event.pointerType === "touch";
+
                 console.log("[CalendarGrid] onPointerDown", {
                   index,
                   pointerType: event.pointerType,
                   button: event.button,
                 });
-                
+
                 // Only allow left-button mouse clicks
                 if (isMouse && event.button !== 0) {
                   console.log("[CalendarGrid] Non-left button, ignoring");
                   return;
                 }
-                
-                // Prevent default only for mouse to block text selection
-                // Don't prevent for touch to allow scrolling
+
+                if (isTouch) {
+                  if (!touchRangeEnabled) {
+                    return;
+                  }
+
+                  event.preventDefault();
+                  event.stopPropagation();
+
+                  if (pendingTouchStart !== null) {
+                    const ordered = orderIndices(pendingTouchStart, index);
+                    setPendingTouchStart(null);
+                    onRangeSelect?.({
+                      start: monthDays[ordered.startIndex],
+                      end: monthDays[ordered.endIndex],
+                    });
+                    return;
+                  }
+
+                  setPendingTouchStart(index);
+                  setDragState({
+                    startIndex: index,
+                    endIndex: index,
+                    pointerId: event.pointerId,
+                    hasMoved: false,
+                  });
+                  return;
+                }
+
                 if (isMouse) {
                   event.preventDefault();
                   event.stopPropagation();
                 }
-                
+
+                if (touchRangeEnabled) {
+                  setPendingTouchStart(null);
+                }
+
                 console.log("[CalendarGrid] Starting drag state");
                 setDragState({
                   startIndex: index,
@@ -244,26 +342,29 @@ export default function CalendarGrid({
                 });
               }}
               onPointerUp={(event) => {
-                console.log("[CalendarGrid] onPointerUp", { index, pointerType: event.pointerType });
-                
+                console.log("[CalendarGrid] onPointerUp", {
+                  index,
+                  pointerType: event.pointerType,
+                });
+
                 if (!dragState || dragState.pointerId !== event.pointerId) {
                   console.log("[CalendarGrid] No matching drag state on pointerUp");
                   return;
                 }
-                
+
                 const isMouse = event.pointerType === "mouse";
-                
+
                 // Only allow left-button mouse clicks
                 if (isMouse && event.button !== 0) {
                   console.log("[CalendarGrid] Non-left button on pointerUp, ignoring");
                   return;
                 }
-                
+
                 if (isMouse) {
                   event.preventDefault();
                 }
-                
-                finalizeSelection(event.pointerId, index);
+
+                finalizeSelection(event.pointerId, index, event.pointerType);
               }}
             />
           );

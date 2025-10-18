@@ -12,7 +12,7 @@ import { useMediaQuery } from "@/hooks/use-media-query";
 import { useToast } from "@/hooks/use-toast";
 import { buildRecurringIcs, filterRecurringTransactionsForMonth } from "@/lib/icsExport";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
-import { Download, Filter } from "lucide-react";
+import { CalendarRange, Download, Filter } from "lucide-react";
 import RangeSummaryDrawer from "@/components/RangeSummaryDrawer";
 import {
   buildRangeCsv,
@@ -34,6 +34,7 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
   const [selectedDayTransactions, setSelectedDayTransactions] = useState<ParsedTransaction[]>([]);
   const [selectedRange, setSelectedRange] = useState<DateRange | null>(null);
   const [isRangeDrawerOpen, setRangeDrawerOpen] = useState(false);
+  const [isMobileRangeMode, setMobileRangeMode] = useState(false);
   const [filters, setFilters] = useState<FilterState>({
     categories: [],
     minAmount: "",
@@ -43,6 +44,7 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
   });
   const isDesktop = useMediaQuery("(min-width: 1024px)");
   const { toast } = useToast();
+  const isTouchRangeEnabled = isDesktop || isMobileRangeMode;
 
   const handlePrevMonth = () => {
     setCurrentDate(
@@ -58,6 +60,17 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
 
   const handleToday = () => {
     setCurrentDate(new Date());
+  };
+
+  const handleToggleMobileRangeMode = () => {
+    setMobileRangeMode((prev) => {
+      const next = !prev;
+      if (!prev) {
+        setSelectedDate(null);
+        setSelectedDayTransactions([]);
+      }
+      return next;
+    });
   };
 
   const handleDayClick = (date: Date, dayTransactions: ParsedTransaction[]) => {
@@ -289,6 +302,25 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
                         {EXPORT_TOOLTIP}
                       </TooltipContent>
                     </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant={isMobileRangeMode ? "default" : "outline"}
+                          size="sm"
+                          onClick={handleToggleMobileRangeMode}
+                          aria-pressed={isMobileRangeMode}
+                          data-testid="button-mobile-range-mode"
+                          className="gap-2"
+                        >
+                          <CalendarRange className="h-4 w-4" />
+                          {isMobileRangeMode ? "Range on" : "Select range"}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" align="center" className="max-w-[220px] text-center">
+                        Tap once to set a start date, then tap another day to finish.
+                        You can also drag while your finger is down.
+                      </TooltipContent>
+                    </Tooltip>
                     <Sheet>
                       <SheetTrigger asChild>
                         <Button
@@ -324,6 +356,7 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
                   onDayClick={handleDayClick}
                   selectedRange={selectedRange}
                   onRangeSelect={handleRangeSelect}
+                  touchRangeEnabled={isTouchRangeEnabled}
                 />
               </div>
             ) : (
@@ -366,6 +399,7 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
                       onDayClick={handleDayClick}
                       selectedRange={selectedRange}
                       onRangeSelect={handleRangeSelect}
+                      touchRangeEnabled={isTouchRangeEnabled}
                     />
                   </div>
                 </ResizablePanel>
