@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { buildRecurringIcs } from '@/lib/icsExport';
+import type { ParsedTransaction } from '@/types/transactions';
 
 export const useExport = () => {
   const [isGenerating, setIsGenerating] = useState(false);
 
-  const exportTransactions = async (transactions: any[], selectedIds: string[], monthDate?: Date) => {
+  const exportTransactions = async (transactions: ParsedTransaction[], selectedIds: string[], monthDate?: Date) => {
     setIsGenerating(true);
     try {
       const selected = transactions.filter((t) => selectedIds.includes(t.id));
