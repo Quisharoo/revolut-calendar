@@ -61,7 +61,12 @@ describe("CalendarPage day detail interactions", () => {
   it("renders desktop side panel without sheet dialog and respects overlay close", async () => {
     const user = userEvent.setup();
 
-    render(<CalendarPage transactions={sampleTransactions} />);
+    render(
+      <CalendarPage
+        transactions={sampleTransactions}
+        onRequestExport={() => {}}
+      />
+    );
 
     // On desktop, there are two buttons (mobile hidden, desktop visible)
     // Click the first one which should trigger the handler
@@ -85,7 +90,12 @@ describe("CalendarPage day detail interactions", () => {
     const user = userEvent.setup();
     mediaQueryMock.mockReturnValue(false);
 
-    render(<CalendarPage transactions={sampleTransactions} />);
+    render(
+      <CalendarPage
+        transactions={sampleTransactions}
+        onRequestExport={() => {}}
+      />
+    );
 
     // On mobile, there are still two buttons but we only need to click one
     const buttons = screen.getAllByTestId("button-open-day");
@@ -140,7 +150,9 @@ describe("CalendarPage filters", () => {
       },
     ];
 
-    render(<CalendarPage transactions={transactions} />);
+    render(
+      <CalendarPage transactions={transactions} onRequestExport={() => {}} />
+    );
 
     const user = userEvent.setup();
 
@@ -215,7 +227,9 @@ describe("CalendarPage filters", () => {
       },
     ];
 
-    render(<CalendarPage transactions={transactions} />);
+    render(
+      <CalendarPage transactions={transactions} onRequestExport={() => {}} />
+    );
 
     await waitFor(() => {
       expect(calendarGridProps).toHaveBeenCalled();

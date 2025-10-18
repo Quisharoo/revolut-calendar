@@ -642,7 +642,7 @@ export const generateDemoData = (): ParsedTransaction[] => {
     .map((transaction) => {
       const base: ParsedTransaction = {
         ...transaction,
-        currencySymbol: transaction.currencySymbol ?? DEFAULT_CURRENCY_SYMBOL,
+        currencySymbol: DEFAULT_CURRENCY_SYMBOL,
       };
 
       if (base.source) {

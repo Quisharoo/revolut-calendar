@@ -1,11 +1,17 @@
 import fs from "fs";
 import path from "path";
 import { parseRevolutCsv } from "../client/src/lib/revolutParser";
+import {
+  detectRecurringSeries,
+  annotateTransactionsWithRecurrence,
+} from "../client/src/lib/recurrenceDetection";
 
 const csvPath = path.resolve(".csvfiles/account-statement_2024-01-01_2025-10-09_en-ie_58acb4.csv");
 const text = fs.readFileSync(csvPath, "utf8");
 
-const transactions = parseRevolutCsv(text);
+const rawTransactions = parseRevolutCsv(text);
+const detection = detectRecurringSeries(rawTransactions);
+const transactions = annotateTransactionsWithRecurrence(rawTransactions, detection.series);
 
 const summarize = (label: string) => {
   const matches = transactions.filter((t) => (t.source?.name ?? t.description).toLowerCase().includes(label.toLowerCase()));

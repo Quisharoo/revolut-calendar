@@ -1,12 +1,60 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useExport } from '../use-export';
+import { detectRecurringSeries } from '@/lib/recurrenceDetection';
+
+const buildSeries = () => {
+  const transactions = [
+    {
+      id: 'rent-jan',
+      date: new Date(2024, 0, 3),
+      description: 'Rent',
+      amount: -1200,
+      category: 'Expense',
+      currencySymbol: '$',
+      source: { name: 'Landlord', type: 'merchant' as const },
+      isRecurring: true,
+    },
+    {
+      id: 'rent-feb',
+      date: new Date(2024, 1, 3),
+      description: 'Rent',
+      amount: -1200,
+      category: 'Expense',
+      currencySymbol: '$',
+      source: { name: 'Landlord', type: 'merchant' as const },
+      isRecurring: true,
+    },
+    {
+      id: 'rent-mar',
+      date: new Date(2024, 2, 3),
+      description: 'Rent',
+      amount: -1200,
+      category: 'Expense',
+      currencySymbol: '$',
+      source: { name: 'Landlord', type: 'merchant' as const },
+      isRecurring: true,
+    },
+    {
+      id: 'rent-apr',
+      date: new Date(2024, 3, 10),
+      description: 'Rent',
+      amount: -1200,
+      category: 'Expense',
+      currencySymbol: '$',
+      source: { name: 'Landlord', type: 'merchant' as const },
+      isRecurring: true,
+    },
+  ];
+
+  const detection = detectRecurringSeries(transactions as any);
+  return detection.series;
+};
 
 describe('useExport', () => {
   it('generates an ICS file and returns success', async () => {
-    const transactions = [
-      { id: '1', date: new Date(), description: 'A', amount: -10, category: 'Expense', currencySymbol: '$', source: { name: 'X' }, isRecurring: true },
-    ];
+    const series = buildSeries();
+    expect(series).toHaveLength(1);
 
   // Mock URL.createObjectURL and revokeObjectURL for the test environment
   const originalCreateObjectURL = (global as any).URL.createObjectURL;
@@ -31,7 +79,7 @@ describe('useExport', () => {
 
     let res: any;
     await act(async () => {
-      res = await exportTransactions(transactions, ['1']);
+      res = await exportTransactions(series, [series[0].id], new Date(2024, 2, 1));
     });
 
     expect(res.success).toBe(true);
