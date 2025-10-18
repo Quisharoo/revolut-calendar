@@ -220,3 +220,23 @@ For issues and questions:
 
 Built with ❤️ using modern web technologies
 
+## Offline / flaky registry — quick recovery
+
+If your network or npm registry access is flaky, use the included retry script to run pnpm install with exponential backoff:
+
+```bash
+chmod +x scripts/pnpm-install-retry.sh
+./scripts/pnpm-install-retry.sh 6 2
+```
+
+This will attempt `pnpm install` up to 6 times, starting with a 2s delay and doubling each retry. After a successful install:
+
+- Run `pnpm test` and `pnpm typecheck` to validate changes.
+- Inspect and commit `pnpm-lock.yaml` if it changed.
+
+If you prefer an npm script, run:
+
+```bash
+npm run install:retry
+```
+
