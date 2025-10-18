@@ -3,19 +3,31 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import DayDetailPanel from "../DayDetailPanel";
 import type { ParsedTransaction } from "@shared/schema";
+import { CONTRACT_VERSION } from "@shared/version";
 
 describe("DayDetailPanel", () => {
-  const createTransaction = (overrides: Partial<ParsedTransaction>): ParsedTransaction => ({
-    id: "test-id",
-    date: new Date("2024-10-15"),
-    description: "Test Transaction",
-    amount: 100,
-    category: "Income",
-    broker: "Test Broker",
-    isRecurring: false,
-    currencySymbol: "$",
-    ...overrides,
-  });
+  const createTransaction = (overrides: Partial<ParsedTransaction>): ParsedTransaction => {
+    const category = overrides.category ?? "Income";
+    const description = overrides.description ?? "Test Transaction";
+    const source =
+      overrides.source ?? {
+        name: description,
+        type: category === "Income" ? "broker" : "merchant",
+      };
+
+    return {
+      id: "test-id",
+      date: new Date("2024-10-15"),
+      description,
+      amount: 100,
+      category,
+      isRecurring: false,
+      currencySymbol: "$",
+      contractVersion: CONTRACT_VERSION,
+      ...overrides,
+      source,
+    };
+  };
 
   const mockOnClose = vi.fn();
 
@@ -196,24 +208,6 @@ describe("DayDetailPanel", () => {
     expect(item).toHaveTextContent("Freelance Payment");
     expect(item).toHaveTextContent("Client ABC");
     expect(item).toHaveTextContent("+€1,500.00");
-  });
-
-  it("uses broker when source is not available", () => {
-    const transactions: ParsedTransaction[] = [
-      createTransaction({
-        id: "1",
-        amount: 1000,
-        category: "Income",
-        description: "Payment",
-        broker: "Test Broker",
-        source: undefined,
-      }),
-    ];
-
-    render(<DayDetailPanel date={new Date("2024-10-15")} transactions={transactions} onClose={mockOnClose} />);
-
-    const item = screen.getByTestId("item-income-1");
-    expect(item).toHaveTextContent("Test Broker");
   });
 
   it("handles transactions with different currencies", () => {

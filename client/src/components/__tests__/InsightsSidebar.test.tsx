@@ -2,19 +2,31 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import InsightsSidebar from "../InsightsSidebar";
 import type { ParsedTransaction } from "@shared/schema";
+import { CONTRACT_VERSION } from "@shared/version";
 
 describe("InsightsSidebar", () => {
-  const createTransaction = (overrides: Partial<ParsedTransaction>): ParsedTransaction => ({
-    id: "test-id",
-    date: new Date("2024-10-01"),
-    description: "Test Transaction",
-    amount: 100,
-    category: "Income",
-    broker: "Test Broker",
-    isRecurring: false,
-    currencySymbol: "$",
-    ...overrides,
-  });
+  const createTransaction = (overrides: Partial<ParsedTransaction>): ParsedTransaction => {
+    const category = overrides.category ?? "Income";
+    const description = overrides.description ?? "Test Transaction";
+    const source =
+      overrides.source ?? {
+        name: description,
+        type: category === "Income" ? "broker" : "merchant",
+      };
+
+    return {
+      id: "test-id",
+      date: new Date("2024-10-01"),
+      description,
+      amount: 100,
+      category,
+      isRecurring: false,
+      currencySymbol: "$",
+      contractVersion: CONTRACT_VERSION,
+      ...overrides,
+      source,
+    };
+  };
 
   it("calculates totals correctly with only income transactions", () => {
     const transactions: ParsedTransaction[] = [

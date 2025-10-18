@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ParsedTransaction } from "@shared/schema";
+import { CONTRACT_VERSION } from "@shared/version";
 import {
   buildRangeCsv,
   buildRangeSummary,
@@ -58,7 +59,10 @@ const mockTransactions: ParsedTransaction[] = [
     isRecurring: false,
     currencySymbol: "$",
   },
-];
+].map((transaction) => ({
+  ...transaction,
+  contractVersion: CONTRACT_VERSION,
+}));
 
 describe("rangeSummary helpers", () => {
   const range: DateRange = {

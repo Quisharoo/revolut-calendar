@@ -1,21 +1,46 @@
 import type {
   ParsedTransaction,
+  TransactionSource,
   TransactionSourceType,
 } from "@shared/schema";
+import { CONTRACT_VERSION } from "@shared/version";
 import { DEFAULT_CURRENCY_SYMBOL } from "@/lib/transactionUtils";
 
 type TransactionTemplate = Omit<
   ParsedTransaction,
-  "date" | "currencySymbol" | "source"
-> & { day: number };
+  "date" | "currencySymbol" | "contractVersion" | "source"
+> & {
+    day: number;
+    contractVersion?: ParsedTransaction["contractVersion"];
+    currencySymbol?: ParsedTransaction["currencySymbol"];
+    source?: TransactionSource;
+    sourceName?: string;
+    sourceType?: TransactionSourceType;
+  };
 
-const inferSourceType = (transaction: ParsedTransaction): TransactionSourceType => {
+const inferSourceType = (transaction: {
+  category: ParsedTransaction["category"];
+  description: string;
+  sourceName?: string;
+  sourceType?: TransactionSourceType;
+}): TransactionSourceType => {
+  if (transaction.sourceType) {
+    return transaction.sourceType;
+  }
   if (transaction.category === "Income") {
     return "broker";
   }
-  const label = `${transaction.broker ?? ""} ${transaction.description}`.toLowerCase();
-  if (label.includes("transfer") || label.includes("savings")) {
+  const label = `${transaction.sourceName ?? ""} ${transaction.description}`.toLowerCase();
+  if (
+    label.includes("transfer") ||
+    label.includes("savings") ||
+    label.includes("account") ||
+    label.includes("deposit")
+  ) {
     return "account";
+  }
+  if (label.includes("insurance") || label.includes("investment") || label.includes("retirement")) {
+    return "broker";
   }
   return "merchant";
 };
@@ -28,7 +53,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Monthly Salary",
     amount: 5000,
     category: "Income",
-    broker: "Employer",
+    sourceName: "Employer",
     isRecurring: true,
   },
   {
@@ -37,7 +62,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Bonus Payment",
     amount: 1500,
     category: "Income",
-    broker: "Employer",
+    sourceName: "Employer",
     isRecurring: false,
   },
   {
@@ -46,7 +71,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Rent Payment",
     amount: -1800,
     category: "Expense",
-    broker: "Landlord",
+    sourceName: "Landlord",
     isRecurring: true,
   },
 
@@ -57,7 +82,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Grocery Shopping",
     amount: -120.5,
     category: "Expense",
-    broker: "Whole Foods",
+    sourceName: "Whole Foods",
     isRecurring: false,
   },
   {
@@ -66,7 +91,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Coffee Shop",
     amount: -8.5,
     category: "Expense",
-    broker: "Starbucks",
+    sourceName: "Starbucks",
     isRecurring: false,
   },
   {
@@ -75,7 +100,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Lunch",
     amount: -15.75,
     category: "Expense",
-    broker: "Local Cafe",
+    sourceName: "Local Cafe",
     isRecurring: false,
   },
 
@@ -86,7 +111,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Netflix Subscription",
     amount: -15.99,
     category: "Expense",
-    broker: "Netflix",
+    sourceName: "Netflix",
     isRecurring: true,
   },
   {
@@ -95,7 +120,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Spotify Premium",
     amount: -9.99,
     category: "Expense",
-    broker: "Spotify",
+    sourceName: "Spotify",
     isRecurring: true,
   },
   {
@@ -104,7 +129,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Adobe Creative Cloud",
     amount: -52.99,
     category: "Expense",
-    broker: "Adobe",
+    sourceName: "Adobe",
     isRecurring: true,
   },
 
@@ -115,7 +140,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Electric Bill",
     amount: -85.3,
     category: "Expense",
-    broker: "Utility Co",
+    sourceName: "Utility Co",
     isRecurring: true,
   },
   {
@@ -124,7 +149,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Internet Bill",
     amount: -65,
     category: "Expense",
-    broker: "ISP Provider",
+    sourceName: "ISP Provider",
     isRecurring: true,
   },
   {
@@ -133,7 +158,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Water Bill",
     amount: -42.5,
     category: "Expense",
-    broker: "Water Department",
+    sourceName: "Water Department",
     isRecurring: true,
   },
 
@@ -144,7 +169,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Freelance Project",
     amount: 1200,
     category: "Income",
-    broker: "Client A",
+    sourceName: "Client A",
     isRecurring: false,
   },
   {
@@ -153,7 +178,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Consulting Fee",
     amount: 800,
     category: "Income",
-    broker: "Client B",
+    sourceName: "Client B",
     isRecurring: false,
   },
   {
@@ -162,7 +187,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Gas Station",
     amount: -55,
     category: "Expense",
-    broker: "Shell",
+    sourceName: "Shell",
     isRecurring: false,
   },
 
@@ -173,7 +198,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Investment Dividend",
     amount: 250,
     category: "Income",
-    broker: "Vanguard",
+    sourceName: "Vanguard",
     isRecurring: false,
   },
   {
@@ -182,7 +207,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Pharmacy",
     amount: -32.4,
     category: "Expense",
-    broker: "CVS",
+    sourceName: "CVS",
     isRecurring: false,
   },
   {
@@ -191,7 +216,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Grocery Shopping",
     amount: -95.6,
     category: "Expense",
-    broker: "Trader Joe's",
+    sourceName: "Trader Joe's",
     isRecurring: false,
   },
 
@@ -202,7 +227,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Transfer to Savings",
     amount: -500,
     category: "Expense",
-    broker: "Bank Transfer",
+    sourceName: "Bank Transfer",
     isRecurring: true,
   },
   {
@@ -211,7 +236,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Investment Contribution",
     amount: -1000,
     category: "Expense",
-    broker: "Retirement Account",
+    sourceName: "Retirement Account",
     isRecurring: true,
   },
   {
@@ -220,7 +245,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Gym Membership",
     amount: -49.99,
     category: "Expense",
-    broker: "FitLife Gym",
+    sourceName: "FitLife Gym",
     isRecurring: true,
   },
 
@@ -231,7 +256,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Restaurant Dinner",
     amount: -75.25,
     category: "Expense",
-    broker: "Local Restaurant",
+    sourceName: "Local Restaurant",
     isRecurring: false,
   },
   {
@@ -240,7 +265,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Movie Tickets",
     amount: -28,
     category: "Expense",
-    broker: "Cinema",
+    sourceName: "Cinema",
     isRecurring: false,
   },
   {
@@ -249,7 +274,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Parking",
     amount: -12,
     category: "Expense",
-    broker: "Parking Garage",
+    sourceName: "Parking Garage",
     isRecurring: false,
   },
 
@@ -260,7 +285,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Online Shopping",
     amount: -145.8,
     category: "Expense",
-    broker: "Amazon",
+    sourceName: "Amazon",
     isRecurring: false,
   },
   {
@@ -269,7 +294,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Clothing Store",
     amount: -89.99,
     category: "Expense",
-    broker: "H&M",
+    sourceName: "H&M",
     isRecurring: false,
   },
   {
@@ -278,7 +303,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Side Gig Payment",
     amount: 300,
     category: "Income",
-    broker: "Gig Platform",
+    sourceName: "Gig Platform",
     isRecurring: false,
   },
 
@@ -289,7 +314,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Car Insurance",
     amount: -125,
     category: "Expense",
-    broker: "Insurance Co",
+    sourceName: "Insurance Co",
     isRecurring: true,
   },
   {
@@ -298,7 +323,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Phone Bill",
     amount: -75,
     category: "Expense",
-    broker: "Mobile Provider",
+    sourceName: "Mobile Provider",
     isRecurring: true,
   },
   {
@@ -307,7 +332,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Grocery Shopping",
     amount: -110.3,
     category: "Expense",
-    broker: "Whole Foods",
+    sourceName: "Whole Foods",
     isRecurring: false,
   },
 
@@ -318,7 +343,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Cashback Reward",
     amount: 45.5,
     category: "Income",
-    broker: "Credit Card",
+    sourceName: "Credit Card",
     isRecurring: false,
   },
   {
@@ -327,7 +352,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Gas Station",
     amount: -60,
     category: "Expense",
-    broker: "Chevron",
+    sourceName: "Chevron",
     isRecurring: false,
   },
   {
@@ -336,7 +361,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Coffee Shop",
     amount: -6.5,
     category: "Expense",
-    broker: "Local Cafe",
+    sourceName: "Local Cafe",
     isRecurring: false,
   },
   {
@@ -345,7 +370,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Lunch",
     amount: -18.75,
     category: "Expense",
-    broker: "Restaurant",
+    sourceName: "Restaurant",
     isRecurring: false,
   },
 
@@ -356,7 +381,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Freelance Invoice",
     amount: 950,
     category: "Income",
-    broker: "Client C",
+    sourceName: "Client C",
     isRecurring: false,
   },
   {
@@ -365,7 +390,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Credit Card Payment",
     amount: -850,
     category: "Expense",
-    broker: "Bank",
+    sourceName: "Bank",
     isRecurring: true,
   },
   {
@@ -374,7 +399,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Grocery Shopping",
     amount: -88.45,
     category: "Expense",
-    broker: "Safeway",
+    sourceName: "Safeway",
     isRecurring: false,
   },
 
@@ -385,7 +410,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Coffee",
     amount: -5.25,
     category: "Expense",
-    broker: "Starbucks",
+    sourceName: "Starbucks",
     isRecurring: false,
   },
   {
@@ -394,7 +419,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Uber Ride",
     amount: -22.5,
     category: "Expense",
-    broker: "Uber",
+    sourceName: "Uber",
     isRecurring: false,
   },
   {
@@ -403,7 +428,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Lunch",
     amount: -14.5,
     category: "Expense",
-    broker: "Food Truck",
+    sourceName: "Food Truck",
     isRecurring: false,
   },
   {
@@ -412,7 +437,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Book Purchase",
     amount: -24.99,
     category: "Expense",
-    broker: "Bookstore",
+    sourceName: "Bookstore",
     isRecurring: false,
   },
   {
@@ -421,7 +446,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Pet Supplies",
     amount: -67.8,
     category: "Expense",
-    broker: "Pet Store",
+    sourceName: "Pet Store",
     isRecurring: false,
   },
   {
@@ -430,7 +455,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Interest Income",
     amount: 12.5,
     category: "Income",
-    broker: "Savings Account",
+    sourceName: "Savings Account",
     isRecurring: true,
   },
   {
@@ -439,7 +464,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Hair Salon",
     amount: -55,
     category: "Expense",
-    broker: "Beauty Salon",
+    sourceName: "Beauty Salon",
     isRecurring: false,
   },
   {
@@ -448,7 +473,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Online Course",
     amount: -99,
     category: "Expense",
-    broker: "Udemy",
+    sourceName: "Udemy",
     isRecurring: false,
   },
   {
@@ -457,7 +482,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Refund",
     amount: 35.99,
     category: "Income",
-    broker: "Amazon",
+    sourceName: "Amazon",
     isRecurring: false,
   },
   {
@@ -466,7 +491,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Doctor Visit",
     amount: -45,
     category: "Expense",
-    broker: "Medical Center",
+    sourceName: "Medical Center",
     isRecurring: false,
   },
 
@@ -477,7 +502,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Morning Pilates Class",
     amount: -22,
     category: "Expense",
-    broker: "Studio Flex",
+    sourceName: "Studio Flex",
     isRecurring: false,
   },
   {
@@ -486,7 +511,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Farmer's Market Produce",
     amount: -34.75,
     category: "Expense",
-    broker: "Farm Fresh Collective",
+    sourceName: "Farm Fresh Collective",
     isRecurring: false,
   },
   {
@@ -495,7 +520,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Brunch with Friends",
     amount: -48.5,
     category: "Expense",
-    broker: "Sunny Side Bistro",
+    sourceName: "Sunny Side Bistro",
     isRecurring: false,
   },
   {
@@ -504,7 +529,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Bookstore Finds",
     amount: -27.6,
     category: "Expense",
-    broker: "Page Turner Books",
+    sourceName: "Page Turner Books",
     isRecurring: false,
   },
   {
@@ -513,7 +538,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Coffee Refuel",
     amount: -7.8,
     category: "Expense",
-    broker: "Corner Roasters",
+    sourceName: "Corner Roasters",
     isRecurring: false,
   },
   {
@@ -522,7 +547,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Arcade Tokens",
     amount: -18,
     category: "Expense",
-    broker: "Retro Arcade",
+    sourceName: "Retro Arcade",
     isRecurring: false,
   },
   {
@@ -531,7 +556,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Rideshare Home",
     amount: -19.5,
     category: "Expense",
-    broker: "Lyft",
+    sourceName: "Lyft",
     isRecurring: false,
   },
   {
@@ -540,7 +565,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Late-night Pizza",
     amount: -14.25,
     category: "Expense",
-    broker: "Downtown Slice",
+    sourceName: "Downtown Slice",
     isRecurring: false,
   },
 
@@ -551,7 +576,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Micro-investment Auto-Deposit",
     amount: -25,
     category: "Expense",
-    broker: "Acorns",
+    sourceName: "Acorns",
     isRecurring: true,
   },
   {
@@ -560,7 +585,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Ride Share",
     amount: -16.4,
     category: "Expense",
-    broker: "Uber",
+    sourceName: "Uber",
     isRecurring: false,
   },
   {
@@ -569,7 +594,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Coworking Day Pass",
     amount: -35,
     category: "Expense",
-    broker: "WorkHub",
+    sourceName: "WorkHub",
     isRecurring: false,
   },
   {
@@ -578,7 +603,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Client Reimbursement",
     amount: 85,
     category: "Income",
-    broker: "Consulting Client",
+    sourceName: "Consulting Client",
     isRecurring: false,
   },
   {
@@ -587,7 +612,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Office Supplies",
     amount: -27.9,
     category: "Expense",
-    broker: "Staples",
+    sourceName: "Staples",
     isRecurring: false,
   },
   {
@@ -596,7 +621,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Team Coffee Run",
     amount: -14.1,
     category: "Expense",
-    broker: "Blue Bottle",
+    sourceName: "Blue Bottle",
     isRecurring: false,
   },
   {
@@ -605,7 +630,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Takeout Dinner",
     amount: -24.75,
     category: "Expense",
-    broker: "Thai Express",
+    sourceName: "Thai Express",
     isRecurring: false,
   },
   {
@@ -614,7 +639,7 @@ const transactionTemplates: TransactionTemplate[] = [
     description: "Late-night Snack",
     amount: -8.2,
     category: "Expense",
-    broker: "Bodega",
+    sourceName: "Bodega",
     isRecurring: false,
   },
 ];
@@ -640,33 +665,36 @@ export const generateDemoData = (): ParsedTransaction[] => {
   })
     .flat()
     .map((transaction) => {
-      const base: ParsedTransaction = {
-        ...transaction,
+      const { source, sourceName, sourceType, ...rest } = transaction;
+
+      const base = {
+        ...rest,
         currencySymbol: transaction.currencySymbol ?? DEFAULT_CURRENCY_SYMBOL,
-      };
+        contractVersion: transaction.contractVersion ?? CONTRACT_VERSION,
+      } as Omit<ParsedTransaction, "source">;
 
-      if (base.source) {
-        return base;
+      if (source) {
+        return { ...base, source };
       }
 
-      if (base.broker) {
-        return {
-          ...base,
-          source: {
-            name: base.broker,
-            type: inferSourceType(base),
-          },
-        };
-      }
+      const resolvedName = (sourceName ?? rest.description).trim();
+      const inferredType =
+        sourceType ??
+        inferSourceType({
+          category: rest.category,
+          description: rest.description,
+          sourceName: resolvedName,
+          sourceType,
+        });
 
       return {
         ...base,
         source: {
-          name: base.description,
-          type: inferSourceType(base),
+          name: resolvedName || rest.description,
+          type: inferredType,
         },
       };
     });
 
-  return transactions;
+  return transactions as ParsedTransaction[];
 };
