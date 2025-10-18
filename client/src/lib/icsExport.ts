@@ -171,11 +171,11 @@ export const buildRecurringIcs = (
 
   const emittedRecurringKeys = new Set<string>();
 
-  recurringTransactions.forEach((transaction) => {
+  for (const transaction of recurringTransactions) {
     if (transaction.isRecurring) {
       const recurringKey = buildRecurringKey(transaction);
       if (emittedRecurringKeys.has(recurringKey)) {
-        return;
+        continue;
       }
       emittedRecurringKeys.add(recurringKey);
     }
@@ -199,7 +199,7 @@ export const buildRecurringIcs = (
       `RRULE:${rrule}`,
       "END:VEVENT"
     );
-  });
+  }
 
   lines.push("END:VCALENDAR");
 
