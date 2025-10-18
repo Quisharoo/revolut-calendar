@@ -1,7 +1,6 @@
 import MonthNavigation from "@/components/MonthNavigation";
 import { useState, useMemo, useCallback } from "react";
 import type { ParsedTransaction } from "@shared/schema";
-import MonthNaviDogation from "@/components/MonthNavigation";
 import CalendarGrid from "@/components/CalendarGrid";
 import InsightsSidebar from "@/components/InsightsSidebar";
 import FilterPanel, { type FilterState } from "@/components/FilterPanel";
