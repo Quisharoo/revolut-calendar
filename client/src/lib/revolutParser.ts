@@ -329,8 +329,9 @@ export const parseRevolutCsv = (text: string): ParsedTransaction[] => {
     const getValue = (index: number | undefined) =>
       index !== undefined && index < cells.length ? cells[index] : "";
 
-    const dateValue = getValue(dateIndex);
-    const parsedDate = parseDate(dateValue);
+  // prefer completed/posted date where available; fall back to started date
+  const dateValue = getValue(dateIndex) || getValue(findColumnByIncludes(["starteddate"]) as number) || getValue(findColumnByIncludes(["startdate"]) as number) || getValue(dateIndex);
+  const parsedDate = parseDate(dateValue);
     if (!parsedDate) {
       return;
     }

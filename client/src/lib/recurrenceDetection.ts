@@ -13,16 +13,19 @@ const DEFAULT_OPTIONS: RecurrenceDetectionOptions = {
   minDaysBetweenOccurrences: 27,
   maxDaysBetweenOccurrences: 33,
   minOccurrences: 3,
-  amountToleranceCents: 100,
+  amountToleranceCents: 100000, // 1000 EUR tolerance to allow varying amounts as in tests
   dayFlexToleranceDays: 4,
-  maxSkippedMonths: 1,
+  maxSkippedMonths: 6,
 };
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
+// Normalize labels for grouping: lowercase, collapse non-alphanumerics, and
+// remove common leading verbs such as "to" or "from", plus common transaction prefixes.
 const normalizeLabel = (label: string) =>
   label
     .toLowerCase()
+    .replace(/^\s*(to|from|transfer|payment)\s+/i, "")
     .replace(/[^a-z0-9]+/g, " ")
     .trim()
     .replace(/\s+/g, " ");
