@@ -29,7 +29,7 @@ export const TransactionSchema = z
     currencySymbol: z.string().min(1).default("€"),
     category: TransactionCategorySchema,
     source: TransactionSourceSchema,
-    contractVersion: z.literal(CONTRACT_VERSION).default(CONTRACT_VERSION),
+    contractVersion: z.literal(CONTRACT_VERSION),
     metadata: z.record(z.unknown()).optional(),
     isRecurring: z.boolean().default(false),
   })
