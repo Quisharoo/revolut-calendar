@@ -1,16 +1,20 @@
 import { useState } from "react";
 import type { ParsedTransaction } from "@shared/schema";
 import UploadSection from "@/components/UploadSection";
+import ExportModal from "@/components/ExportModal";
 import CalendarPage from "./calendar";
 import { generateDemoData } from "@/lib/mockData";
 import { loadRevolutCsv } from "@/lib/revolutParser";
 import { useToast } from "@/hooks/use-toast";
+import { useExport } from "@/hooks/use-export";
 
 export default function Home() {
   const [transactions, setTransactions] = useState<ParsedTransaction[]>([]);
   const [hasData, setHasData] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [isExportOpen, setExportOpen] = useState(false);
   const { toast } = useToast();
+  const { isGenerating, exportTransactions } = useExport();
 
   const handleFileUpload = async (file: File) => {
     setIsImporting(true);
@@ -53,6 +57,15 @@ export default function Home() {
     });
   };
 
+  const handleExport = async (selectedIds: string[], monthDate: Date) => {
+    const result = await exportTransactions(transactions, selectedIds, monthDate);
+    if (result.success) {
+      toast({ title: 'Calendar exported', description: result.fileName });
+    } else {
+      toast({ variant: 'destructive', title: 'Export failed', description: result.error ?? 'Unknown error' });
+    }
+  };
+
   if (!hasData) {
     return (
       <UploadSection
@@ -63,5 +76,16 @@ export default function Home() {
     );
   }
 
-  return <CalendarPage transactions={transactions} />;
+  return (
+    <>
+      <CalendarPage transactions={transactions} />
+      <ExportModal
+        transactions={transactions}
+        isOpen={isExportOpen}
+        onClose={() => setExportOpen(false)}
+        onExport={handleExport}
+        isGenerating={isGenerating}
+      />
+    </>
+  );
 }

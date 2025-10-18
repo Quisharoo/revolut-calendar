@@ -61,8 +61,5 @@ Desktop.ini
 # Git worktrees managed locally
 /.worktrees/
 
-# Keep these active config folders:
-# .github/ - CI/CD workflows
-# .vscode/ - Editor settings
-# .specify/ - Speckit configuration
-# .branchlet.json - Worktree management
+specs/
+.csvfiles/

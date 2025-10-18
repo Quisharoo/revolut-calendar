@@ -1,4 +1,5 @@
 import type { ParsedTransaction } from "@shared/schema";
+import { applyRecurringDetection } from "./recurrenceDetection";
 import { DEFAULT_CURRENCY_SYMBOL, formatCurrency } from "@/lib/transactionUtils";
 
 const CALENDAR_PROD_ID = "-//TransactionCalendar//Recurring Export//EN";
@@ -146,19 +147,22 @@ export const filterRecurringTransactionsForMonth = (
   );
 };
 
+// Exported function for recurring ICS export
+
 export interface BuildRecurringIcsOptions {
   monthDate: Date;
   calendarName?: string;
+  recurrenceOptions?: Partial<import("./recurrenceDetection").RecurrenceDetectionOptions>;
 }
 
+
 export const buildRecurringIcs = (
-  transactions: ParsedTransaction[],
+
+  representativeTransactions: ParsedTransaction[],
   { monthDate, calendarName = "Recurring Transactions" }: BuildRecurringIcsOptions
 ) => {
+  // Use the correct recurring day-of-month for each event
   const { year: targetYear, month: targetMonth } = getCalendarYearMonth(monthDate);
-
-  const recurringTransactions = filterRecurringTransactionsForMonth(transactions, monthDate)
-    .sort((a, b) => a.date.getTime() - b.date.getTime());
 
   const lines: string[] = [
     "BEGIN:VCALENDAR",
@@ -168,24 +172,20 @@ export const buildRecurringIcs = (
   ];
 
   const exportTimestamp = formatDateAsUtcTimestamp(new Date());
-
   const emittedRecurringKeys = new Set<string>();
 
-  recurringTransactions.forEach((transaction) => {
-    if (transaction.isRecurring) {
-      const recurringKey = buildRecurringKey(transaction);
-      if (emittedRecurringKeys.has(recurringKey)) {
-        return;
-      }
-      emittedRecurringKeys.add(recurringKey);
+  representativeTransactions.forEach((transaction) => {
+    const recurringKey = buildRecurringKey(transaction);
+    if (emittedRecurringKeys.has(recurringKey)) {
+      return;
     }
+    emittedRecurringKeys.add(recurringKey);
 
-    const startDate = createUtcDate(
-      targetYear,
-      targetMonth,
-      transaction.date.getDate()
-    );
+    // Use the day-of-month from the representative transaction
+    const recurringDay = transaction.date.getDate();
+    const startDate = createUtcDate(targetYear, targetMonth, recurringDay);
     const endDate = addUtcDays(startDate, 1);
+    // Recurrence: monthly, on the same day-of-month as the representative
     const rrule = buildMonthlyRule(transaction.date);
 
     lines.push(
@@ -202,6 +202,6 @@ export const buildRecurringIcs = (
   });
 
   lines.push("END:VCALENDAR");
-
   return lines.join("\r\n");
 };
+

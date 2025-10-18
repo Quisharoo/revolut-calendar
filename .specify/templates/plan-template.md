@@ -31,7 +31,10 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+- **Code Quality First**: Ensure the plan includes readable, modular code structure and peer review processes.
+- **Test with Purpose**: Define automated testing strategy with Vitest, coverage expectations, and CI pipeline for tests.
+- **User Experience Consistency**: Align with Tailwind CSS and Radix UI patterns, plan for accessibility and device validation.
+- **Performance as a Feature**: Budget metrics for client-side rendering and API responses, include profiling and telemetry plans.
 
 ## Project Structure
 
@@ -102,3 +105,4 @@ directories captured above]
 |-----------|------------|-------------------------------------|
 | [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
 | [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |
+
