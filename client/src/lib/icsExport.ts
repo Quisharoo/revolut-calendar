@@ -5,6 +5,18 @@ import { formatCurrency } from "@/lib/transactionUtils";
 
 const ensureTwoDigits = (value: number) => value.toString().padStart(2, "0");
 
+const median = (values: number[]): number => {
+  if (!values.length) {
+    return 0;
+  }
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  if (sorted.length % 2 === 1) {
+    return sorted[middle];
+  }
+  return (sorted[middle - 1] + sorted[middle]) / 2;
+};
+
 const formatDateAsDateValue = (date: Date) => {
   const year = date.getUTCFullYear();
   const month = ensureTwoDigits(date.getUTCMonth() + 1);
@@ -48,10 +60,26 @@ const hashString = (value: string) => {
 };
 
 const buildSeriesUid = (series: RecurringSeries) => {
-  const descriptor = normalizeForSlug(series.representative.source?.name ?? series.representative.description);
-  const hash = hashString(`${series.id}|${series.representative.id}`);
-  const prefix = descriptor ? descriptor.slice(0, 48) : "recurring";
-  return `${prefix}-${hash}@transactioncalendar`;
+  const primary = series.transactions[0] ?? series.representative;
+  const descriptorSource =
+    primary.source?.identifier ?? primary.source?.name ?? primary.description;
+  const slugCandidate = normalizeForSlug(descriptorSource) || "recurring";
+  const slug = slugCandidate.slice(0, 48);
+
+  const amounts = series.transactions.map((transaction) => Math.abs(transaction.amount));
+  const medianAmount = median(amounts);
+  const currency = (primary.currencySymbol ?? DEFAULT_CURRENCY_SYMBOL).trim().toLowerCase();
+  const sourceType = primary.source?.type ?? "unknown";
+
+  const stableSeed = [
+    series.key,
+    medianAmount.toFixed(2),
+    currency,
+    sourceType,
+  ].join("|");
+  const hash = hashString(stableSeed);
+
+  return `${slug}-${hash}@transactioncalendar`;
 };
 
 const resolveSummary = (series: RecurringSeries) => {
