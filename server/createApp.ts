@@ -12,11 +12,11 @@ const createLoggingMiddleware = () => {
     const path = req.path;
     let capturedJsonResponse: Record<string, any> | undefined;
 
-    const originalResJson = res.json.bind(res) as Response["json"];
-    res.json = function jsonProxy(bodyJson: any) {
-      capturedJsonResponse = bodyJson;
-      return originalResJson(bodyJson);
-    } as Response["json"];
+    const originalResJson = res.json.bind(res);
+    res.json = function jsonProxy(...args: Parameters<typeof originalResJson>) {
+      capturedJsonResponse = args[0];
+      return originalResJson(...args);
+    };
 
     res.on("finish", () => {
       const duration = Date.now() - start;
