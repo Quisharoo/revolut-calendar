@@ -78,17 +78,7 @@ export default function Home() {
 
   return (
     <>
-      <div className="p-4">
-        <div className="flex justify-end">
-          <button
-            className="btn btn-outline"
-            onClick={() => setExportOpen(true)}
-            data-testid="button-export-ics-home"
-          >
-            Export Recurring Transactions
-          </button>
-        </div>
-      </div>
+      {/* Export Recurring Transactions button removed as duplicate flow */}
       <CalendarPage transactions={transactions} />
       <ExportModal
         transactions={transactions}

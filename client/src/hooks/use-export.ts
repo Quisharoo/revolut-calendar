@@ -1,11 +1,15 @@
 import { useState } from 'react';
 import { buildRecurringIcs } from '@/lib/icsExport';
-import type { ParsedTransaction } from '@/types/transactions';
+import type { ParsedTransaction } from '@shared/schema';
 
 export const useExport = () => {
   const [isGenerating, setIsGenerating] = useState(false);
 
-  const exportTransactions = async (transactions: ParsedTransaction[], selectedIds: string[], monthDate?: Date) => {
+  const exportTransactions = async (
+    transactions: ParsedTransaction[],
+    selectedIds: string[],
+    monthDate?: Date
+  ) => {
     setIsGenerating(true);
     try {
       const selected = transactions.filter((t) => selectedIds.includes(t.id));
@@ -21,9 +25,9 @@ export const useExport = () => {
       // The object URL will be automatically revoked when the document is unloaded.
       // Explicitly revoking it with a timeout is unreliable and can cancel the download.
       // URL.revokeObjectURL(url);
-      setTimeout(() => {
-        // Optionally revoke URL here if needed
-      }, 0);
+        // setTimeout(() => {
+        //   // Optionally revoke URL here if needed
+        // }, 0);
       return { success: true, fileName };
     } catch (error) {
       console.error('Export failed', error);
