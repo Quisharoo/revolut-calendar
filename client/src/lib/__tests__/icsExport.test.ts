@@ -98,16 +98,16 @@ const buildSeriesFixture = (
 describe("buildRecurringIcs", () => {
   it("generates an event for each selected series in the given month", () => {
     const occurrences = [
-      createTransaction({ id: "rent-jan", date: new Date(2024, 0, 3), amount: -1800, description: "Rent", currencySymbol: "€" }),
-      createTransaction({ id: "rent-feb", date: new Date(2024, 1, 3), amount: -1800, description: "Rent", currencySymbol: "€" }),
-      createTransaction({ id: "rent-mar", date: new Date(2024, 2, 3), amount: -1800, description: "Rent", currencySymbol: "€" }),
-      createTransaction({ id: "rent-apr", date: new Date(2024, 3, 10), amount: -1800, description: "Rent", currencySymbol: "€" }),
+      createTransaction({ id: "rent-jan", date: new Date(Date.UTC(2024, 0, 3)), amount: -1800, description: "Rent", currencySymbol: "€" }),
+      createTransaction({ id: "rent-feb", date: new Date(Date.UTC(2024, 1, 3)), amount: -1800, description: "Rent", currencySymbol: "€" }),
+      createTransaction({ id: "rent-mar", date: new Date(Date.UTC(2024, 2, 3)), amount: -1800, description: "Rent", currencySymbol: "€" }),
+      createTransaction({ id: "rent-apr", date: new Date(Date.UTC(2024, 3, 10)), amount: -1800, description: "Rent", currencySymbol: "€" }),
     ];
 
     const series = buildSeriesFixture("rent-series", occurrences);
 
     const result = buildRecurringIcs([series], {
-      monthDate: new Date(2024, 0, 1),
+      monthDate: new Date(Date.UTC(2024, 0, 1)),
       calendarName: "Recurring Transactions - January 2024",
     });
 
@@ -151,7 +151,7 @@ describe("buildRecurringIcs", () => {
     const series = buildSeriesFixture("rent-series", occurrences);
 
     const result = buildRecurringIcs([series], {
-      monthDate: new Date(2024, 0, 1),
+      monthDate: new Date(Date.UTC(2024, 0, 1)),
       timezone: "America/Los_Angeles",
     });
 
@@ -164,18 +164,141 @@ describe("buildRecurringIcs", () => {
     expect(result.icsText).toContain("RRULE:FREQ=MONTHLY;BYMONTHDAY=2");
   });
 
+  it("keeps the app timezone date when exporting from another locale", () => {
+    const occurrences = [
+      createTransaction({
+        id: "rent-jan",
+        date: new Date("2024-01-03T00:00:00Z"),
+        amount: -1800,
+        description: "Rent",
+        currencySymbol: "€",
+      }),
+      createTransaction({
+        id: "rent-feb",
+        date: new Date("2024-02-03T00:00:00Z"),
+        amount: -1800,
+        description: "Rent",
+        currencySymbol: "€",
+      }),
+      createTransaction({
+        id: "rent-mar",
+        date: new Date("2024-03-03T00:00:00Z"),
+        amount: -1800,
+        description: "Rent",
+        currencySymbol: "€",
+      }),
+    ];
+
+    const series = buildSeriesFixture("rent-series", occurrences);
+
+    const result = buildRecurringIcs([series], {
+      monthDate: new Date(Date.UTC(2024, 0, 1)),
+      timezone: APP_TIMEZONE,
+    });
+
+    expect(result.icsText).toContain(
+      `DTSTART;TZID=${APP_TIMEZONE}:20240103T000000`
+    );
+    expect(result.icsText).toContain(
+      `DTEND;TZID=${APP_TIMEZONE}:20240104T000000`
+    );
+    expect(result.icsText).toContain("RRULE:FREQ=MONTHLY;BYMONTHDAY=3");
+  });
+
+  it("keeps the RRULE day stable for UTC+ timezones", () => {
+    const occurrences = [
+      createTransaction({
+        id: "rent-jan",
+        date: new Date("2024-01-03T00:00:00Z"),
+        amount: -1800,
+        description: "Rent",
+        currencySymbol: "€",
+      }),
+      createTransaction({
+        id: "rent-feb",
+        date: new Date("2024-02-03T00:00:00Z"),
+        amount: -1800,
+        description: "Rent",
+        currencySymbol: "€",
+      }),
+      createTransaction({
+        id: "rent-mar",
+        date: new Date("2024-03-03T00:00:00Z"),
+        amount: -1800,
+        description: "Rent",
+        currencySymbol: "€",
+      }),
+    ];
+
+    const series = buildSeriesFixture("rent-series", occurrences);
+
+    const result = buildRecurringIcs([series], {
+      monthDate: new Date(Date.UTC(2024, 0, 1)),
+      timezone: "Pacific/Auckland",
+    });
+
+    expect(result.icsText).toContain(
+      "DTSTART;TZID=Pacific/Auckland:20240103T000000"
+    );
+    expect(result.icsText).toContain(
+      "DTEND;TZID=Pacific/Auckland:20240104T000000"
+    );
+    expect(result.icsText).toContain("RRULE:FREQ=MONTHLY;BYMONTHDAY=3");
+  });
+
+  it("keeps the local day when the occurrence already encodes a timezone offset", () => {
+    const occurrences = [
+      createTransaction({
+        id: "rent-jan",
+        date: new Date("2024-01-03T08:00:00Z"),
+        amount: -1800,
+        description: "Rent",
+        currencySymbol: "€",
+      }),
+      createTransaction({
+        id: "rent-feb",
+        date: new Date("2024-02-03T08:00:00Z"),
+        amount: -1800,
+        description: "Rent",
+        currencySymbol: "€",
+      }),
+      createTransaction({
+        id: "rent-mar",
+        date: new Date("2024-03-03T08:00:00Z"),
+        amount: -1800,
+        description: "Rent",
+        currencySymbol: "€",
+      }),
+    ];
+
+    const series = buildSeriesFixture("rent-series", occurrences);
+
+    const result = buildRecurringIcs([series], {
+      monthDate: new Date(Date.UTC(2024, 0, 1)),
+      timezone: "America/Los_Angeles",
+    });
+
+    expect(result.icsText).toContain(
+      "DTSTART;TZID=America/Los_Angeles:20240103T000000"
+    );
+    expect(result.icsText).toContain(
+      "DTEND;TZID=America/Los_Angeles:20240104T000000"
+    );
+    expect(result.icsText).toContain("RRULE:FREQ=MONTHLY;BYMONTHDAY=3");
+  });
+
   it("reuses a stable UID for the same series across months", () => {
     const occurrences = [
-      createTransaction({ id: "salary-jan", date: new Date(2024, 0, 25), amount: 2500, category: "Income", description: "Salary" }),
-      createTransaction({ id: "salary-feb", date: new Date(2024, 1, 26), amount: 2510, category: "Income", description: "Salary" }),
-      createTransaction({ id: "salary-mar", date: new Date(2024, 2, 25), amount: 2490, category: "Income", description: "Salary" }),
-      createTransaction({ id: "salary-apr", date: new Date(2024, 3, 25), amount: 2505, category: "Income", description: "Salary" }),
+      createTransaction({ id: "salary-jan", date: new Date(Date.UTC(2024, 0, 25)), amount: 2500, category: "Income", description: "Salary" }),
+      createTransaction({ id: "salary-feb", date: new Date(Date.UTC(2024, 1, 26)), amount: 2510, category: "Income", description: "Salary" }),
+      createTransaction({ id: "salary-mar", date: new Date(Date.UTC(2024, 2, 25)), amount: 2490, category: "Income", description: "Salary" }),
+      createTransaction({ id: "salary-apr", date: new Date(Date.UTC(2024, 3, 25)), amount: 2505, category: "Income", description: "Salary" }),
     ];
 
     const series = buildSeriesFixture("salary-series", occurrences);
 
-    const january = buildRecurringIcs([series], { monthDate: new Date(2024, 0, 1) });
-    const february = buildRecurringIcs([series], { monthDate: new Date(2024, 1, 1) });
+    const january = buildRecurringIcs([series], { monthDate: new Date(Date.UTC(2024, 0, 1)) });
+    const february = buildRecurringIcs([series], { monthDate: new Date(Date.UTC(2024, 1, 1)) });
 
     const extractUid = (ics: string) => (
       ics.match(/UID:([^\r\n]+)/)?.[1] ?? null
@@ -190,15 +313,15 @@ describe("buildRecurringIcs", () => {
 
   it("records skipped series when no occurrence is available for the target month", () => {
     const occurrences = [
-      createTransaction({ id: "rent-jan", date: new Date(2024, 0, 3), amount: -1800, description: "Rent" }),
-      createTransaction({ id: "rent-feb", date: new Date(2024, 1, 3), amount: -1800, description: "Rent" }),
-      createTransaction({ id: "rent-mar", date: new Date(2024, 2, 3), amount: -1800, description: "Rent" }),
-      createTransaction({ id: "rent-apr", date: new Date(2024, 3, 10), amount: -1800, description: "Rent" }),
+      createTransaction({ id: "rent-jan", date: new Date(Date.UTC(2024, 0, 3)), amount: -1800, description: "Rent" }),
+      createTransaction({ id: "rent-feb", date: new Date(Date.UTC(2024, 1, 3)), amount: -1800, description: "Rent" }),
+      createTransaction({ id: "rent-mar", date: new Date(Date.UTC(2024, 2, 3)), amount: -1800, description: "Rent" }),
+      createTransaction({ id: "rent-apr", date: new Date(Date.UTC(2024, 3, 10)), amount: -1800, description: "Rent" }),
     ];
 
     const series = buildSeriesFixture("rent-series", occurrences);
 
-    const result = buildRecurringIcs([series], { monthDate: new Date(2024, 5, 1) });
+    const result = buildRecurringIcs([series], { monthDate: new Date(Date.UTC(2024, 5, 1)) });
 
     expect(result.stats.eventCount).toBe(0);
     expect(result.stats.exportedSeriesIds).toHaveLength(0);
@@ -207,15 +330,15 @@ describe("buildRecurringIcs", () => {
 
   it("emits UTC timestamps when the timezone override is UTC", () => {
     const occurrences = [
-      createTransaction({ id: "rent-jan", date: new Date(2024, 0, 3), amount: -1800, description: "Rent" }),
-      createTransaction({ id: "rent-feb", date: new Date(2024, 1, 3), amount: -1800, description: "Rent" }),
-      createTransaction({ id: "rent-mar", date: new Date(2024, 2, 3), amount: -1800, description: "Rent" }),
+      createTransaction({ id: "rent-jan", date: new Date(Date.UTC(2024, 0, 3)), amount: -1800, description: "Rent" }),
+      createTransaction({ id: "rent-feb", date: new Date(Date.UTC(2024, 1, 3)), amount: -1800, description: "Rent" }),
+      createTransaction({ id: "rent-mar", date: new Date(Date.UTC(2024, 2, 3)), amount: -1800, description: "Rent" }),
     ];
 
     const series = buildSeriesFixture("rent-series", occurrences);
 
     const result = buildRecurringIcs([series], {
-      monthDate: new Date(2024, 0, 1),
+      monthDate: new Date(Date.UTC(2024, 0, 1)),
       timezone: "UTC",
     });
 

@@ -70,10 +70,7 @@ const addPlainDays = (
   };
 };
 
-const buildMonthlyRule = (date: Date, timezone: string) => {
-  const { day } = extractDatePartsForTimezone(date, timezone);
-  return `FREQ=MONTHLY;BYMONTHDAY=${Number(day)}`;
-};
+const buildMonthlyRule = (day: number) => `FREQ=MONTHLY;BYMONTHDAY=${day}`;
 
 const normalizeForSlug = (value: string) =>
   value
@@ -192,9 +189,9 @@ export const buildRecurringIcs = (
       return;
     }
 
-    const localYear = occurrence.date.getFullYear();
-    const localMonth = occurrence.date.getMonth();
-    const localDay = occurrence.date.getDate();
+    const localYear = occurrence.date.getUTCFullYear();
+    const localMonth = occurrence.date.getUTCMonth();
+    const localDay = occurrence.date.getUTCDate();
 
     const startUtc = new Date(Date.UTC(localYear, localMonth, localDay, 0, 0, 0, 0));
     const endUtc = new Date(Date.UTC(localYear, localMonth, localDay + 1, 0, 0, 0, 0));
@@ -203,12 +200,15 @@ export const buildRecurringIcs = (
 
     let startMidnightLocal: string | undefined;
     let endMidnightLocal: string | undefined;
+    let monthlyRuleDay = startUtc.getUTCDate();
 
     if (!isUtc) {
-      const startDateParts = extractDatePartsForTimezone(startUtc, timezoneKey);
+      const startDateParts = extractDatePartsForTimezone(occurrence.date, timezoneKey);
+
       startMidnightLocal = `${startDateParts.year}${startDateParts.month}${startDateParts.day}T000000`;
       const endDateParts = addPlainDays(startDateParts, 1);
       endMidnightLocal = `${endDateParts.year}${endDateParts.month}${endDateParts.day}T000000`;
+      monthlyRuleDay = Number(startDateParts.day);
     }
 
     const eventLines = [
@@ -223,7 +223,7 @@ export const buildRecurringIcs = (
       isUtc
         ? `DTEND:${formatDateAsUtcTimestamp(endUtc)}`
         : `DTEND;TZID=${escapeIcsText(timezoneKey)}:${endMidnightLocal!}`,
-      `RRULE:${buildMonthlyRule(startUtc, timezoneKey)}`,
+      `RRULE:${buildMonthlyRule(monthlyRuleDay)}`,
       "END:VEVENT",
     ];
 
