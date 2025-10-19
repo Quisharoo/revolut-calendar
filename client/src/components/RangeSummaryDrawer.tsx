@@ -3,10 +3,7 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
-import {
-  type RangeSummary,
-  type DateRange,
-} from "@/lib/rangeSummary";
+import type { DateRange, RangeSummary } from "@/types/range";
 import { formatCurrency, getCategoryDotColor } from "@/lib/transactionUtils";
 import { Copy, TrendingUp, TrendingDown, Layers, Star } from "lucide-react";
 

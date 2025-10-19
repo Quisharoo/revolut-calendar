@@ -1,39 +1,15 @@
-import type { ParsedTransaction, TransactionCategory } from "@shared/schema";
+import type { ParsedTransaction } from "@shared/schema";
 import {
   DEFAULT_CURRENCY_SYMBOL,
   getLocalDateKey,
   resolveTransactionSource,
 } from "@/lib/transactionUtils";
-
-export interface DateRange {
-  start: Date;
-  end: Date;
-}
-
-export interface RankedEntity {
-  name: string;
-  total: number;
-  count: number;
-}
-
-export interface CategoryBreakdown extends RankedEntity {
-  category: TransactionCategory;
-}
-
-export interface RangeSummary {
-  range: DateRange;
-  rangeLabel: string;
-  dayCount: number;
-  transactionCount: number;
-  totalIncome: number;
-  totalExpense: number;
-  netTotal: number;
-  dailyAverage: number;
-  currencySymbol: string;
-  topMerchants: RankedEntity[];
-  topCategories: CategoryBreakdown[];
-  largestTransaction: ParsedTransaction | null;
-}
+import type {
+  CategoryBreakdown,
+  DateRange,
+  RangeSummary,
+  RankedEntity,
+} from "@/types/range";
 
 const toStartOfDay = (date: Date) =>
   new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0);

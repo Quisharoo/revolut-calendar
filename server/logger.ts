@@ -1,10 +1,20 @@
-export const log = (message: string, source = "express") => {
-  const formattedTime = new Date().toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: true,
-  });
+type LogLevel = "info" | "warn" | "error" | "debug";
 
-  console.log(`${formattedTime} [${source}] ${message}`);
+export const log = (message: string, level: LogLevel = "info", source = "express") => {
+  const timestamp = new Date().toISOString();
+  const entry = `[${timestamp}] [${level.toUpperCase()}] [${source}] ${message}`;
+
+  switch (level) {
+    case "error":
+      console.error(entry);
+      break;
+    case "warn":
+      console.warn(entry);
+      break;
+    case "debug":
+      console.debug(entry);
+      break;
+    default:
+      console.log(entry);
+  }
 };

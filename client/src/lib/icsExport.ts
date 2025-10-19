@@ -1,5 +1,5 @@
 import { ICS_CALENDAR_PROD_ID, APP_TIMEZONE, DEFAULT_CURRENCY_SYMBOL } from "@shared/constants";
-import { escapeIcsText, foldIcsLines } from "@shared/utils";
+import { escapeIcsText, foldIcsLines, hashString } from "@shared/utils";
 import type { RecurringSeries } from "@shared/schema";
 import { formatCurrency } from "@/lib/transactionUtils";
 
@@ -49,15 +49,6 @@ const normalizeForSlug = (value: string) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "");
-
-const hashString = (value: string) => {
-  let hash = 0x811c9dc5;
-  for (let index = 0; index < value.length; index += 1) {
-    hash ^= value.charCodeAt(index);
-    hash = Math.imul(hash, 0x01000193);
-  }
-  return (hash >>> 0).toString(36);
-};
 
 const buildSeriesUid = (series: RecurringSeries) => {
   const primary = series.transactions[0] ?? series.representative;

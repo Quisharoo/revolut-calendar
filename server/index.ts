@@ -28,7 +28,7 @@ export default async function startServer() {
           reusePort: true,
         },
         () => {
-          log(`serving on port ${targetPort}`);
+          log(`serving on port ${targetPort}`, "info", "server");
           resolve();
         }
       );
@@ -46,7 +46,7 @@ export default async function startServer() {
     await listenOn(port);
   } catch (error) {
     if ((error as NodeJS.ErrnoException)?.code === "EADDRINUSE") {
-      log(`Port ${port} in use, trying fallback port ${fallbackPort}`);
+      log(`Port ${port} in use, trying fallback port ${fallbackPort}`, "warn", "server");
       await listenOn(fallbackPort);
     } else {
       throw error;

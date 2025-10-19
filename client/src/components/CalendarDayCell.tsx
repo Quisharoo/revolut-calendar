@@ -4,9 +4,9 @@ import {
   formatCurrency,
   summarizeTransactionsByDate,
   getLocalDateKey,
-  type DailySummary,
   DEFAULT_CURRENCY_SYMBOL,
 } from "@/lib/transactionUtils";
+import type { DailySummary } from "@/types/transactions";
 import { RepeatIcon, TrendingUp, TrendingDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 

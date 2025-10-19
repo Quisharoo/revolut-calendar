@@ -4,8 +4,8 @@ import {
   buildRangeCsv,
   buildRangeSummary,
   filterTransactionsInRange,
-  type DateRange,
 } from "../rangeSummary";
+import type { DateRange } from "@/types/range";
 
 const mockTransactions: ParsedTransaction[] = [
   {

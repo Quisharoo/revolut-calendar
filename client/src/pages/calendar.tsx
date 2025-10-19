@@ -24,8 +24,8 @@ import {
   buildRangeCsv,
   buildRangeSummary,
   filterTransactionsInRange,
-  type DateRange,
 } from "@/lib/rangeSummary";
+import type { DateRange } from "@/types/range";
 
 interface CalendarPageProps {
   transactions: ParsedTransaction[];
