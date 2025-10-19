@@ -8,6 +8,9 @@ import { useToast } from "@/hooks/use-toast";
 import { useExport } from "@/hooks/use-export";
 import { parseCsvInWorker, detectRecurringInWorker } from "@/lib/workers";
 import { annotateTransactionsWithRecurrence } from "@/lib/recurrenceDetection";
+import { ensureMinimumDuration } from "@/lib/utils";
+
+const MIN_PROCESSING_DURATION_MS = 1100;
 
 export default function Home() {
   const [transactions, setTransactions] = useState<ParsedTransaction[]>([]);
@@ -16,6 +19,7 @@ export default function Home() {
   const [isImporting, setIsImporting] = useState(false);
   const [isExportOpen, setExportOpen] = useState(false);
   const [exportMonth, setExportMonth] = useState<Date | undefined>(undefined);
+  const [processingMessage, setProcessingMessage] = useState<string | undefined>(undefined);
   const { toast } = useToast();
   const { isGenerating, exportTransactions } = useExport();
 
@@ -28,20 +32,24 @@ export default function Home() {
   };
 
   const handleFileUpload = async (file: File) => {
+    setProcessingMessage(`Parsing ${file.name} and preparing calendar…`);
     setIsImporting(true);
     try {
-      const parseResult = await parseCsvInWorker(file);
-      if (!parseResult.ok) {
-        const reason = parseResult.errors[0] ?? "Unable to parse the provided CSV file.";
-        throw new Error(reason);
-      }
+      const { transactions: annotated, series: detectedSeries } = await ensureMinimumDuration(
+        (async () => {
+          const parseResult = await parseCsvInWorker(file);
+          if (!parseResult.ok) {
+            const reason = parseResult.errors[0] ?? "Unable to parse the provided CSV file.";
+            throw new Error(reason);
+          }
 
-      if (parseResult.transactions.length === 0) {
-        throw new Error("No transactions were detected in the provided file.");
-      }
+          if (parseResult.transactions.length === 0) {
+            throw new Error("No transactions were detected in the provided file.");
+          }
 
-      const { transactions: annotated, series: detectedSeries } = await hydrateRecurringState(
-        parseResult.transactions
+          return hydrateRecurringState(parseResult.transactions);
+        })(),
+        MIN_PROCESSING_DURATION_MS
       );
 
       setTransactions(annotated);
@@ -64,14 +72,19 @@ export default function Home() {
       });
     } finally {
       setIsImporting(false);
+      setProcessingMessage(undefined);
     }
   };
 
   const handleLoadDemo = async () => {
+    setProcessingMessage("Loading sample transactions…");
+    setIsImporting(true);
     try {
       const demoData = generateDemoData();
-      const { transactions: annotated, series: detectedSeries } =
-        await hydrateRecurringState(demoData);
+      const { transactions: annotated, series: detectedSeries } = await ensureMinimumDuration(
+        hydrateRecurringState(demoData),
+        MIN_PROCESSING_DURATION_MS
+      );
       setTransactions(annotated);
       setSeries(detectedSeries);
       setHasData(true);
@@ -86,6 +99,9 @@ export default function Home() {
         title: "Demo load failed",
         description: "Unable to prepare the demo transactions.",
       });
+    } finally {
+      setIsImporting(false);
+      setProcessingMessage(undefined);
     }
   };
 
@@ -104,6 +120,7 @@ export default function Home() {
         onFileUpload={handleFileUpload}
         onLoadDemo={handleLoadDemo}
         isProcessing={isImporting}
+        processingMessage={processingMessage}
       />
     );
   }
