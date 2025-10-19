@@ -1,33 +1,14 @@
+import { DEFAULT_CURRENCY_SYMBOL } from "@shared/constants";
 import type {
   ParsedTransaction,
   TransactionSource,
   TransactionSourceType,
 } from "@shared/schema";
-
-export interface DailyTotals {
-  income: number;
-  expense: number;
-  net: number;
-}
-
-export interface DailyTransactionGroup {
-  source: TransactionSource;
-  totals: DailyTotals;
-  transactions: ParsedTransaction[];
-  currencySymbol: string;
-}
-
-export interface DailySummary {
-  dateKey: string;
-  date: Date;
-  totals: DailyTotals;
-  recurringCount: number;
-  transactions: ParsedTransaction[];
-  groups: DailyTransactionGroup[];
-  currencySymbol: string;
-}
-
-export const DEFAULT_CURRENCY_SYMBOL = "$";
+import type {
+  DailySummary,
+  DailyTotals,
+  DailyTransactionGroup,
+} from "@/types/transactions";
 
 export const getCategoryColor = (category: string): string => {
   switch (category) {
@@ -61,6 +42,8 @@ export const getCategoryDotColor = (category: string): string => {
       return "bg-foreground";
   }
 };
+
+export { DEFAULT_CURRENCY_SYMBOL };
 
 export const formatCurrency = (
   amount: number,

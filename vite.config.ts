@@ -4,6 +4,7 @@ import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 
 const isTestRun = process.env.VITEST === "true";
+const isCoverageRun = process.env.VITEST_COVERAGE === "true";
 
 export default defineConfig({
   plugins: [
@@ -32,6 +33,7 @@ export default defineConfig({
     },
   },
   root: path.resolve(import.meta.dirname, "client"),
+  publicDir: path.resolve(import.meta.dirname, "public"),
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
@@ -44,7 +46,7 @@ export default defineConfig({
   },
   test: {
     globals: true,
-    environment: "jsdom",
+    environment: isCoverageRun ? "happy-dom" : "jsdom",
     setupFiles: path.resolve(import.meta.dirname, "vitest.setup.ts"),
     coverage: {
       reporter: ["text", "html"],

@@ -1,118 +1,90 @@
-import React from 'react';
-import type { ParsedTransaction } from '@shared/schema';
-import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@/components/ui/sheet';
-import { Button } from '@/components/ui/button';
-import {
-  detectRecurringTransactions,
-  getGroupingKey,
-} from '@/lib/recurrenceDetection';
-import { DEFAULT_CURRENCY_SYMBOL, formatCurrency } from '@/lib/transactionUtils';
+import React from "react";
+import type { RecurringSeries } from "@shared/schema";
+import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import { DEFAULT_CURRENCY_SYMBOL, formatCurrency } from "@/lib/transactionUtils";
+import { selectSeriesForMonth } from "@/lib/recurrenceDetection";
 
 const formatDate = (date: Date) =>
   date.toLocaleDateString(undefined, {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
+    day: "numeric",
+    month: "short",
+    year: "numeric",
   });
 
-const formatMonth = (date: Date) =>
-  date.toLocaleDateString(undefined, {
-    month: 'short',
-    year: 'numeric',
-  });
-
-const buildOccurrenceSummary = (occurrences: ParsedTransaction[]) => {
-  if (!occurrences.length) return '';
-  const first = occurrences[0];
-  const last = occurrences[occurrences.length - 1];
-  return `${formatDate(first.date)} • ${occurrences.length} occurrence${occurrences.length === 1 ? '' : 's'} (${formatMonth(first.date)} – ${formatMonth(last.date)})`;
+const formatMonthRange = (series: RecurringSeries) => {
+  const first = series.transactions[0];
+  const last = series.transactions[series.transactions.length - 1];
+  return `${formatDate(first.date)} – ${formatDate(last.date)}`;
 };
 
 interface ExportModalProps {
-  transactions: ParsedTransaction[];
+  series: RecurringSeries[];
   isOpen: boolean;
   onClose: () => void;
-  onExport: (selectedIds: string[], monthDate: Date) => void;
+  onExport: (selectedSeriesIds: string[], monthDate: Date) => void;
   isGenerating?: boolean;
   monthDate?: Date;
 }
 
+const toMonthStart = (input?: Date) => {
+  if (input instanceof Date && !Number.isNaN(input.valueOf())) {
+    return new Date(input.getFullYear(), input.getMonth(), 1);
+  }
+  const today = new Date();
+  return new Date(today.getFullYear(), today.getMonth(), 1);
+};
+
 export default function ExportModal({
-  transactions,
+  series,
   isOpen,
   onClose,
   onExport,
   isGenerating = false,
   monthDate,
 }: ExportModalProps) {
-  const [selected, setSelected] = React.useState<Set<string>>(new Set());
-
-  const resolvedMonthDate = React.useMemo(() => {
-    if (monthDate instanceof Date && !Number.isNaN(monthDate.valueOf())) {
-      return new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
-    }
-
-    if (transactions.length === 0) {
-      const today = new Date();
-      return new Date(today.getFullYear(), today.getMonth(), 1);
-    }
-
-    const latest = transactions.reduce<Date | null>((latestDate, transaction) => {
-      if (!(transaction.date instanceof Date)) {
-        return latestDate;
-      }
-
-      if (!latestDate || transaction.date.getTime() > latestDate.getTime()) {
-        return transaction.date;
-      }
-
-      return latestDate;
-    }, null);
-
-    const fallback = latest ?? new Date();
-    return new Date(fallback.getFullYear(), fallback.getMonth(), 1);
-  }, [monthDate, transactions]);
+  const resolvedMonthDate = React.useMemo(() => toMonthStart(monthDate), [monthDate]);
 
   const monthLabel = React.useMemo(
     () =>
       resolvedMonthDate.toLocaleDateString(undefined, {
-        month: 'long',
-        year: 'numeric',
+        month: "long",
+        year: "numeric",
       }),
     [resolvedMonthDate]
   );
 
-  // Detect recurring transactions from all data
-  const recurringIds = React.useMemo(() => detectRecurringTransactions(transactions), [transactions]);
-  // Group recurring transactions by recurrence group
-  const recurringGroups = React.useMemo(() => {
-    const groups = new Map<string, ParsedTransaction[]>();
-    transactions.forEach((tx) => {
-      if (!recurringIds.has(tx.id)) return;
-      const key = getGroupingKey(tx);
-      if (!groups.has(key)) groups.set(key, []);
-      groups.get(key)!.push(tx);
-    });
-    // Sort each group by date
-    groups.forEach((arr) => arr.sort((a, b) => a.date.getTime() - b.date.getTime()));
-    return Array.from(groups.entries());
-  }, [transactions, recurringIds]);
+  const seriesForMonth = React.useMemo(
+    () => selectSeriesForMonth(series, resolvedMonthDate),
+    [series, resolvedMonthDate]
+  );
 
-  const representativeIds = React.useMemo(
-    () => recurringGroups.map(([, arr]) => arr[arr.length - 1].id),
-    [recurringGroups]
+  const [selected, setSelected] = React.useState<Set<string>>(
+    new Set(seriesForMonth.map((entry) => entry.id))
   );
 
   React.useEffect(() => {
-    setSelected(new Set(representativeIds));
-  }, [representativeIds]);
+    setSelected(new Set(seriesForMonth.map((entry) => entry.id)));
+  }, [seriesForMonth]);
 
   const toggle = (id: string) => {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+    setSelected((previous) => {
+      const next = new Set(previous);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
       return next;
+    });
+  };
+
+  const handleToggleAll = () => {
+    setSelected((previous) => {
+      if (seriesForMonth.every((entry) => previous.has(entry.id))) {
+        return new Set();
+      }
+      return new Set(seriesForMonth.map((entry) => entry.id));
     });
   };
 
@@ -123,29 +95,17 @@ export default function ExportModal({
     onExport(Array.from(selected), resolvedMonthDate);
   };
 
-  const allSelected = representativeIds.length > 0 && representativeIds.every((id) => selected.has(id));
-
-  const handleToggleAll = () => {
-    if (representativeIds.length === 0) {
-      setSelected(new Set());
-      return;
-    }
-
-    setSelected((prev) => {
-      if (representativeIds.every((id) => prev.has(id))) {
-        return new Set();
-      }
-
-      return new Set(representativeIds);
-    });
-  };
+  const allSelected =
+    seriesForMonth.length > 0 &&
+    seriesForMonth.every((entry) => selected.has(entry.id));
 
   return (
-    <Sheet open={isOpen} onOpenChange={(open: boolean) => { if (!open) onClose(); }}>
+    <Sheet open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
       <SheetContent className="flex h-full flex-col overflow-hidden">
         <SheetTitle>Export Recurring Transactions</SheetTitle>
         <SheetDescription>
-          Select recurring transactions detected from all data to include in the calendar export.
+          Select recurring transaction series detected for all data. One event will be
+          generated per series for {monthLabel}.
         </SheetDescription>
         <div className="mt-4 flex items-center justify-between gap-2">
           <span className="text-sm text-muted-foreground">Exporting for {monthLabel}</span>
@@ -153,45 +113,45 @@ export default function ExportModal({
             variant="ghost"
             size="sm"
             onClick={handleToggleAll}
-            disabled={representativeIds.length === 0}
+            disabled={seriesForMonth.length === 0}
           >
-            {allSelected ? 'Unselect all' : 'Select all'}
+            {allSelected ? "Unselect all" : "Select all"}
           </Button>
         </div>
         <div className="mt-2 min-h-0 flex-1 overflow-auto pr-1">
-          {recurringGroups.length === 0 ? (
+          {seriesForMonth.length === 0 ? (
             <p className="p-2 text-sm text-muted-foreground">
-              No recurring transactions detected.
+              No recurring transactions detected for this month.
             </p>
           ) : (
-            recurringGroups.map(([groupId, occurrences]) => {
-              const representative = occurrences[occurrences.length - 1];
-              const id = representative.id;
-              const label = representative.source?.name ?? representative.description;
+            seriesForMonth.map((entry) => {
+              const representative = entry.representative;
               const amountLabel = formatCurrency(
                 representative.amount,
                 representative.currencySymbol ?? DEFAULT_CURRENCY_SYMBOL
               );
               return (
                 <label
-                  key={groupId}
-                  className="flex items-center gap-2 p-2 hover:bg-muted"
+                  key={entry.id}
+                  className="flex items-center gap-3 rounded-md p-3 hover:bg-muted"
                 >
                   <input
-                    aria-label={`select-transaction-${id}`}
+                    aria-label={`select-series-${entry.id}`}
                     type="checkbox"
-                    checked={selected.has(id)}
-                    onChange={() => toggle(id)}
+                    checked={selected.has(entry.id)}
+                    onChange={() => toggle(entry.id)}
                   />
                   <div className="flex-1">
                     <div className="flex items-baseline justify-between gap-2">
-                      <span className="font-medium">{label}</span>
+                      <span className="font-medium">
+                        {representative.source?.name ?? representative.description}
+                      </span>
                       <span className="text-sm font-semibold tabular-nums text-muted-foreground">
                         {amountLabel}
                       </span>
                     </div>
-                    <div className="text-sm text-muted-foreground">
-                      {buildOccurrenceSummary(occurrences)}
+                    <div className="text-xs text-muted-foreground">
+                      {formatMonthRange(entry)}
                     </div>
                   </div>
                 </label>
@@ -199,13 +159,12 @@ export default function ExportModal({
             })
           )}
         </div>
-        <div className="mt-4 flex justify-end gap-2">
-          <Button variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button
-            onClick={handleExport}
-            disabled={isGenerating || selected.size === 0 || recurringGroups.length === 0}
-          >
-            {isGenerating ? 'Generating...' : 'Export'}
+        <div className="mt-4 flex items-center justify-end gap-2">
+          <Button variant="outline" onClick={onClose} disabled={isGenerating}>
+            Cancel
+          </Button>
+          <Button onClick={handleExport} disabled={isGenerating || selected.size === 0}>
+            {isGenerating ? "Generating…" : "Export"}
           </Button>
         </div>
       </SheetContent>

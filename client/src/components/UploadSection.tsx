@@ -2,6 +2,32 @@ import { useState, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Upload, FileText, AlertCircle } from "lucide-react";
+import { CSV_ALLOWED_MIME_TYPES, MAX_CSV_FILE_BYTES } from "@shared/constants";
+
+const ACCEPTED_EXTENSIONS = [".csv"];
+const ALLOWED_MIME_TYPES = new Set(
+  CSV_ALLOWED_MIME_TYPES.map((mime) => mime.toLowerCase())
+);
+
+const formatBytes = (bytes: number): string => {
+  if (!Number.isFinite(bytes) || bytes <= 0) {
+    return "0 B";
+  }
+  const units = ["B", "KB", "MB", "GB"];
+  let size = bytes;
+  let unitIndex = 0;
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024;
+    unitIndex += 1;
+  }
+  return `${size % 1 === 0 ? size.toFixed(0) : size.toFixed(1)} ${units[unitIndex]}`;
+};
+
+const isAllowedMimeType = (type: string | undefined) =>
+  type ? ALLOWED_MIME_TYPES.has(type.toLowerCase()) : false;
+
+const hasAllowedExtension = (fileName: string) =>
+  ACCEPTED_EXTENSIONS.some((extension) => fileName.toLowerCase().endsWith(extension));
 
 interface UploadSectionProps {
   onFileUpload: (file: File) => void;
@@ -17,6 +43,27 @@ export default function UploadSection({
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string>("");
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const maxFileSizeLabel = formatBytes(MAX_CSV_FILE_BYTES);
+
+  const validateAndUpload = useCallback(
+    (file: File) => {
+      const mimeOk = isAllowedMimeType(file.type);
+      const extensionOk = hasAllowedExtension(file.name);
+      if (!mimeOk && !extensionOk) {
+        setError("Please upload a CSV file");
+        return;
+      }
+
+      if (file.size > MAX_CSV_FILE_BYTES) {
+        setError(`CSV file is too large (max ${maxFileSizeLabel}).`);
+        return;
+      }
+
+      setError("");
+      onFileUpload(file);
+    },
+    [maxFileSizeLabel, onFileUpload]
+  );
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -42,14 +89,10 @@ export default function UploadSection({
 
       const file = e.dataTransfer.files[0];
       if (file) {
-        if (file.type === "text/csv" || file.name.endsWith(".csv")) {
-          onFileUpload(file);
-        } else {
-          setError("Please upload a CSV file");
-        }
+        validateAndUpload(file);
       }
     },
-    [onFileUpload, isProcessing]
+    [isProcessing, validateAndUpload]
   );
 
   const handleFileInput = useCallback(
@@ -60,14 +103,10 @@ export default function UploadSection({
       setError("");
       const file = e.target.files?.[0];
       if (file) {
-        if (file.type === "text/csv" || file.name.endsWith(".csv")) {
-          onFileUpload(file);
-        } else {
-          setError("Please upload a CSV file");
-        }
+        validateAndUpload(file);
       }
     },
-    [onFileUpload, isProcessing]
+    [isProcessing, validateAndUpload]
   );
 
   return (
@@ -161,7 +200,8 @@ export default function UploadSection({
           <p className="text-xs text-muted-foreground">
             <strong className="text-foreground">CSV Format:</strong> Your file
             should include columns for date, description, amount, category, and
-            optionally broker. Categories should be: Income or Expense.
+            optionally broker. Categories should be: Income or Expense. Maximum
+            file size {maxFileSizeLabel}.
           </p>
           {isProcessing && (
             <p className="text-xs text-muted-foreground mt-3">

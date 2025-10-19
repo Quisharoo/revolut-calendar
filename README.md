@@ -50,7 +50,7 @@ cd revolut-calendar
 
 2. Install dependencies:
 ```bash
-npm install
+pnpm install
 ```
 
 3. Set up environment variables:
@@ -61,12 +61,12 @@ cp .env.example .env
 
 4. Push database schema:
 ```bash
-npm run db:push
+pnpm db:push
 ```
 
 5. Start the development server:
 ```bash
-npm run dev
+pnpm dev
 ```
 
 The application will be available at `http://localhost:5000`.
@@ -75,33 +75,53 @@ The application will be available at `http://localhost:5000`.
 
 ### Available Scripts
 
-- `npm run dev` - Start development server with hot reload
-- `npm run build` - Build for production
-- `npm run start` - Start production server
-- `npm run check` - Run TypeScript type checking
-- `npm test` - Run tests once
-- `npm run test:watch` - Run tests in watch mode
-- `npm run db:push` - Push database schema changes
+- `pnpm dev` - Start development server with hot reload
+- `pnpm build` - Build for production
+- `pnpm start` - Start production server
+- `pnpm check` - Run TypeScript type checking
+- `pnpm test` - Run tests once
+- `pnpm test:watch` - Run tests in watch mode
+- `pnpm db:push` - Push database schema changes
 
 ### Project Structure
 
 ```
-├── client/                 # Frontend React application
+├── api/                      # Serverless entry for deployment
+│   └── index.ts
+├── client/                   # React 18 + Vite frontend
 │   ├── src/
-│   │   ├── components/    # React components
-│   │   ├── pages/         # Page components
-│   │   ├── lib/           # Utilities and helpers
-│   │   └── hooks/         # Custom React hooks
+│   │   ├── components/       # Reusable UI primitives
+│   │   ├── hooks/            # Custom React hooks
+│   │   ├── lib/              # Core client logic
+│   │   ├── normalization/    # Payee / amount cleanup helpers
+│   │   ├── pages/            # Route-level components
+│   │   ├── styles/           # Tailwind / global CSS
+│   │   ├── types/            # UI-only types
+│   │   ├── workers/          # Heavy compute off main thread
+│   │   ├── main.tsx          # App entry
+│   │   └── router.tsx        # Wouter route definitions
 │   └── index.html
-├── server/                # Backend Express application
-│   ├── index.ts          # Main server entry point
-│   ├── routes.ts         # API routes
-│   ├── storage.ts        # Database interactions
-│   └── vite.ts           # Vite middleware
-├── shared/               # Shared code between client and server
-│   └── schema.ts         # Zod schemas and types
-├── api/                  # Vercel serverless function entry
-└── dist/                 # Built files (gitignored)
+├── docs/                     # Developer and product documentation
+│   ├── AGENTS.md
+│   ├── DEPLOYMENT.md
+│   ├── RECURRENCE-SPEC.md
+│   └── ICS-EXAMPLES/
+├── server/                   # Express app for local/full-stack
+│   ├── createApp.ts
+│   ├── index.ts
+│   ├── middleware/
+│   ├── routes/
+│   └── storage.ts
+├── shared/                   # Shared schemas/constants
+│   ├── constants.ts
+│   ├── schema.ts
+│   └── utils.ts
+├── tests/                    # Integration and golden-file tests
+│   ├── csv/
+│   ├── recurrence/
+│   ├── ics/
+│   └── e2e/
+└── scripts/                  # Maintenance scripts
 ```
 
 ## Deployment
@@ -114,7 +134,7 @@ This application is configured for seamless deployment on Vercel.
 
 ### Manual Deployment
 
-See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed deployment instructions, including:
+See [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) for detailed deployment instructions, including:
 
 - Vercel configuration
 - Environment variables setup
@@ -142,13 +162,13 @@ DATABASE_URL=your_postgres_connection_string
 Run the test suite:
 
 ```bash
-npm test
+pnpm test
 ```
 
 Run tests in watch mode during development:
 
 ```bash
-npm run test:watch
+pnpm test:watch
 ```
 
 ## Contributing
@@ -214,9 +234,28 @@ MIT License - see [LICENSE](./LICENSE) file for details
 
 For issues and questions:
 - Open an issue on [GitHub](https://github.com/Quisharoo/revolut-calendar/issues)
-- Check the [DEPLOYMENT.md](./DEPLOYMENT.md) for deployment-specific questions
+- Check the [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) for deployment-specific questions
 
 ---
 
 Built with ❤️ using modern web technologies
 
+## Offline / flaky registry — quick recovery
+
+If your network or npm registry access is flaky, use the included retry script to run pnpm install with exponential backoff:
+
+```bash
+chmod +x scripts/pnpm-install-retry.sh
+./scripts/pnpm-install-retry.sh 6 2
+```
+
+This will attempt `pnpm install` up to 6 times, starting with a 2s delay and doubling each retry. After a successful install:
+
+- Run `pnpm test` and `pnpm typecheck` to validate changes.
+- Inspect and commit `pnpm-lock.yaml` if it changed.
+
+If you prefer a package script, run:
+
+```bash
+pnpm install:retry
+```

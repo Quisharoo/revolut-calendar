@@ -5,9 +5,9 @@ import {
   getMonthDays,
   summarizeTransactionsByDate,
   getLocalDateKey,
-  type DailySummary,
   DEFAULT_CURRENCY_SYMBOL,
 } from "@/lib/transactionUtils";
+import type { DailySummary } from "@/types/transactions";
 
 interface CalendarGridProps {
   currentDate: Date;

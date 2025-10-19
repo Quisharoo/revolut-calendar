@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { MAX_CSV_ROWS } from "@shared/constants";
 import { parseRevolutCsv } from "../revolutParser";
 
 const baseHeader = "Type,Product,Started Date,Completed Date,Description,Amount,Fee,Currency,State,Balance";
@@ -32,5 +33,17 @@ describe("parseRevolutCsv current account focus", () => {
 
     const coffee = result.find((tx) => tx.description === "Coffee Shop");
     expect(coffee?.amount).toBeLessThan(0);
+  });
+
+  it("throws when the CSV exceeds the supported row limit", () => {
+    const rows = Array.from({ length: MAX_CSV_ROWS + 1 }, (_, index) =>
+      `Card Payment,Current,2025-02-01 09:00:00,2025-02-01 09:00:00,Row ${index + 1},-10.00,0.00,EUR,COMPLETED,1000.00`
+    );
+
+    const csv = [baseHeader, ...rows].join("\n");
+
+    expect(() => parseRevolutCsv(csv)).toThrow(
+      /maximum supported row count/i
+    );
   });
 });

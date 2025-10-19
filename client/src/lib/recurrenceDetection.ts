@@ -1,28 +1,40 @@
-import type { ParsedTransaction } from "@shared/schema";
+import { DEFAULT_CURRENCY_SYMBOL } from "@shared/constants";
+import type {
+  ParsedTransaction,
+  RecurringSeries,
+} from "@shared/schema";
+import { sortByDateAscending } from "@shared/utils";
 
 export interface RecurrenceDetectionOptions {
-  minDaysBetweenOccurrences: number;
-  maxDaysBetweenOccurrences: number;
   minOccurrences: number;
-  amountTolerancePercent: number; // e.g. 2 = 2% tolerance
-  dayFlexToleranceDays: number;
+  minSpanDays: number;
+  maxSpanDays: number;
   maxSkippedMonths: number;
-  groupingSubstrings?: string[]; // if set, group by substring match (case-insensitive)
+  dayFlexToleranceDays: number;
+  groupingSubstrings?: string[];
 }
 
 const DEFAULT_OPTIONS: RecurrenceDetectionOptions = {
-  minDaysBetweenOccurrences: 27,
-  maxDaysBetweenOccurrences: 33,
   minOccurrences: 3,
-  amountTolerancePercent: 2, // 2% tolerance by default
-  dayFlexToleranceDays: 4,
+  minSpanDays: 90,
+  maxSpanDays: 370,
   maxSkippedMonths: 6,
+  dayFlexToleranceDays: 4,
 };
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
-// Normalize labels for grouping: lowercase, collapse non-alphanumerics, and
-// remove common leading verbs such as "to" or "from", plus common transaction prefixes.
+const resolveToleranceBand = (amount: number) => {
+  const magnitude = Math.abs(amount);
+  if (magnitude <= 50) {
+    return "band-50";
+  }
+  if (magnitude < 500) {
+    return "band-1pct";
+  }
+  return "band-0.5pct";
+};
+
 const normalizeLabel = (label: string) =>
   label
     .toLowerCase()
@@ -35,318 +47,257 @@ export const getGroupingKey = (
   transaction: ParsedTransaction,
   groupingSubstrings?: string[]
 ) => {
-  const label = transaction.source?.name ?? transaction.description;
-  const normalisedLabel = normalizeLabel(label);
+  const sourceLabel = transaction.source?.name ?? transaction.description;
+  const normalisedLabel = normalizeLabel(sourceLabel);
   const direction = transaction.amount >= 0 ? "in" : "out";
-  if (groupingSubstrings && groupingSubstrings.length > 0) {
-    const found = groupingSubstrings.find((substr) =>
-      normalisedLabel.includes(substr.toLowerCase())
+  const toleranceBand = resolveToleranceBand(transaction.amount);
+
+  if (groupingSubstrings?.length) {
+    const match = groupingSubstrings.find((candidate) =>
+      normalisedLabel.includes(candidate.toLowerCase())
     );
-    if (found) {
-      return `${found.toLowerCase()}|${direction}`;
+    if (match) {
+      return `${match.toLowerCase()}|${direction}|${toleranceBand}`;
     }
   }
-  return `${normalisedLabel}|${direction}`;
-};
 
-const getMonthIndex = (date: Date) => date.getFullYear() * 12 + date.getMonth();
-
-const shouldPromotePrimary = (
-  current: ParsedTransaction,
-  candidate: ParsedTransaction
-) => {
-  const currentMagnitude = Math.abs(current.amount);
-  const candidateMagnitude = Math.abs(candidate.amount);
-
-  if (candidateMagnitude > currentMagnitude) {
-    return true;
-  }
-  if (candidateMagnitude < currentMagnitude) {
-    return false;
-  }
-
-  return candidate.date.getTime() > current.date.getTime();
-};
-
-type MonthlyBucket = {
-  monthId: number;
-  primary: ParsedTransaction;
-  transactions: ParsedTransaction[];
-};
-
-const buildMonthlyBuckets = (
-  transactions: ParsedTransaction[]
-): MonthlyBucket[] => {
-  const buckets = new Map<number, MonthlyBucket>();
-
-  transactions.forEach((transaction) => {
-    const monthId = getMonthIndex(transaction.date);
-    const bucket = buckets.get(monthId);
-
-    if (!bucket) {
-      buckets.set(monthId, {
-        monthId,
-        primary: transaction,
-        transactions: [transaction],
-      });
-      return;
-    }
-
-    bucket.transactions.push(transaction);
-    if (shouldPromotePrimary(bucket.primary, transaction)) {
-      bucket.primary = transaction;
-    }
-  });
-
-  return Array.from(buckets.values()).sort((first, second) => first.monthId - second.monthId);
+  return `${normalisedLabel}|${direction}|${toleranceBand}`;
 };
 
 const median = (values: number[]): number => {
-  if (values.length === 0) {
+  if (!values.length) {
     return 0;
   }
-
   const sorted = [...values].sort((a, b) => a - b);
-  const middleIndex = Math.floor(sorted.length / 2);
-
+  const mid = Math.floor(sorted.length / 2);
   if (sorted.length % 2 === 1) {
-    return sorted[middleIndex];
+    return sorted[mid];
   }
-
-  const lower = sorted[middleIndex - 1];
-  const upper = sorted[middleIndex];
-  return Math.round((lower + upper) / 2);
+  return (sorted[mid - 1] + sorted[mid]) / 2;
 };
 
-const selectRepresentativeForMonth = (
-  bucket: MonthlyBucket,
-  targetDay: number
-): ParsedTransaction => {
-  const fallbackDay = bucket.primary.date.getDate();
-  const referenceDay = Number.isFinite(targetDay) && targetDay > 0 ? targetDay : fallbackDay;
+const diffInDays = (a: Date, b: Date) =>
+  Math.round((b.getTime() - a.getTime()) / MS_PER_DAY);
 
-  return bucket.transactions.reduce<ParsedTransaction>((best, candidate) => {
-    const bestDayDiff = Math.abs(best.date.getDate() - referenceDay);
-    const candidateDayDiff = Math.abs(candidate.date.getDate() - referenceDay);
-
-    if (candidateDayDiff !== bestDayDiff) {
-      return candidateDayDiff < bestDayDiff ? candidate : best;
-    }
-
-    const bestMagnitude = Math.abs(best.amount);
-    const candidateMagnitude = Math.abs(candidate.amount);
-    if (candidateMagnitude !== bestMagnitude) {
-      return candidateMagnitude > bestMagnitude ? candidate : best;
-    }
-
-    return candidate.date.getTime() > best.date.getTime() ? candidate : best;
-  }, bucket.transactions[0]);
+const buildSeriesId = (key: string, transactions: ParsedTransaction[]) => {
+  const head = transactions[0];
+  const tail = transactions[transactions.length - 1];
+  const seed = `${key}|${head?.id ?? ""}|${tail?.id ?? ""}|${transactions.length}`;
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < seed.length; index += 1) {
+    hash ^= seed.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return `${key.replace(/[^a-z0-9]+/g, "-")}-${(hash >>> 0).toString(36)}`;
 };
 
-const findQualifyingMonthIds = (
-  buckets: MonthlyBucket[],
-  options: RecurrenceDetectionOptions
-): Set<number> => {
-  const qualifying = new Set<number>();
+const buildExplanation = (
+  transactions: ParsedTransaction[],
+  currencySymbol: string
+): RecurringSeries["explanation"] => {
+  const occurrenceIds = transactions.map((transaction) => transaction.id);
+  const occurrenceDates = transactions.map((transaction) => transaction.date);
 
-  if (buckets.length < options.minOccurrences) {
-    return qualifying;
+  const gaps = [] as RecurringSeries["explanation"]["gaps"];
+  let minSpanDays = Number.POSITIVE_INFINITY;
+  let maxSpanDays = 0;
+  let weekdayDriftDays = 0;
+
+  for (let index = 1; index < transactions.length; index += 1) {
+    const previous = transactions[index - 1];
+    const current = transactions[index];
+    const span = Math.abs(diffInDays(previous.date, current.date));
+    minSpanDays = Math.min(minSpanDays, span);
+    maxSpanDays = Math.max(maxSpanDays, span);
+
+    const weekdayDelta = Math.abs(previous.date.getDay() - current.date.getDay());
+    weekdayDriftDays = Math.max(weekdayDriftDays, weekdayDelta);
+
+    gaps.push({ from: previous.date, to: current.date, days: span });
   }
 
-  const maxMonthGap = options.maxSkippedMonths + 1;
-  const minAllowed = Math.max(options.minDaysBetweenOccurrences - options.dayFlexToleranceDays, 1);
+  if (!Number.isFinite(minSpanDays)) {
+    minSpanDays = 0;
+  }
 
-  let run: MonthlyBucket[] = [buckets[0]];
+  const amounts = transactions.map((transaction) => Math.abs(transaction.amount));
+  const referenceAmount = median(amounts);
+  const deltas = transactions.map((transaction) =>
+    Math.abs(Math.abs(transaction.amount) - referenceAmount)
+  );
+  const minDelta = Math.min(...deltas);
+  const maxDelta = Math.max(...deltas);
+  const averageDelta = deltas.reduce((total, value) => total + value, 0) / deltas.length;
 
-  const finalizeRun = () => {
-    if (run.length >= options.minOccurrences) {
-      run.forEach((bucket) => {
-        qualifying.add(bucket.monthId);
-      });
-    }
+  return {
+    occurrenceIds,
+    occurrenceDates,
+    minSpanDays,
+    maxSpanDays,
+    weekdayDriftDays,
+    gaps,
+    amountDelta: {
+      min: Number.isFinite(minDelta) ? minDelta : 0,
+      max: Number.isFinite(maxDelta) ? maxDelta : 0,
+      average: Number.isFinite(averageDelta) ? averageDelta : 0,
+      currencySymbol,
+    },
+    notes: [`Median amount ${currencySymbol}${referenceAmount.toFixed(2)}`],
   };
-
-  for (let index = 1; index < buckets.length; index += 1) {
-    const previous = buckets[index - 1];
-    const current = buckets[index];
-
-    const monthGap = current.monthId - previous.monthId;
-    const diffDays = Math.round(
-      (current.primary.date.getTime() - previous.primary.date.getTime()) / MS_PER_DAY
-    );
-
-    const maxAllowed =
-      options.maxDaysBetweenOccurrences * monthGap + options.dayFlexToleranceDays;
-
-    const withinMonthGap = monthGap >= 1 && monthGap <= maxMonthGap;
-    const withinWindow = diffDays >= minAllowed && diffDays <= maxAllowed;
-
-    if (withinMonthGap && withinWindow) {
-      run.push(current);
-    } else {
-      finalizeRun();
-      run = [current];
-    }
-  }
-
-  finalizeRun();
-
-  return qualifying;
 };
 
-export const detectRecurringTransactions = (
+const resolveAmountTolerance = (referenceAmount: number) => {
+  const magnitude = Math.abs(referenceAmount);
+  if (magnitude <= 50) {
+    return 0.5;
+  }
+  if (magnitude < 500) {
+    return magnitude * 0.01;
+  }
+  return magnitude * 0.005;
+};
+
+const filterByAmountTolerance = (transactions: ParsedTransaction[]) => {
+  if (!transactions.length) {
+    return [] as ParsedTransaction[];
+  }
+  const absAmounts = transactions.map((transaction) => Math.abs(transaction.amount));
+  const centralAmount = median(absAmounts);
+  const tolerance = resolveAmountTolerance(centralAmount || transactions[0]?.amount || 0);
+  return transactions.filter(
+    (transaction) => Math.abs(Math.abs(transaction.amount) - centralAmount) <= tolerance
+  );
+};
+
+export interface DetectRecurringResult {
+  series: RecurringSeries[];
+  orphanIds: string[];
+}
+
+export const detectRecurringSeries = (
   transactions: ParsedTransaction[],
   options: Partial<RecurrenceDetectionOptions> = {}
-): Set<string> => {
-  const resolvedOptions = { ...DEFAULT_OPTIONS, ...options };
+): DetectRecurringResult => {
+  if (!transactions.length) {
+    return { series: [], orphanIds: [] };
+  }
+
+  const resolved = { ...DEFAULT_OPTIONS, ...options };
   const grouped = new Map<string, ParsedTransaction[]>();
 
   transactions.forEach((transaction) => {
-    const key = getGroupingKey(transaction, resolvedOptions.groupingSubstrings);
+    const key = getGroupingKey(transaction, resolved.groupingSubstrings);
     if (!grouped.has(key)) {
       grouped.set(key, []);
     }
     grouped.get(key)!.push(transaction);
   });
 
-  const recurringIds = new Set<string>();
+  const series: RecurringSeries[] = [];
 
-  grouped.forEach((groupTransactions) => {
-    // --- Amount tolerance as percentage ---
-    const absAmounts = groupTransactions.map((t) => Math.abs(t.amount));
-    const medianAmount = median(absAmounts);
-    const tolerance = medianAmount * (resolvedOptions.amountTolerancePercent / 100);
-    const filtered = groupTransactions.filter((t) => Math.abs(Math.abs(t.amount) - medianAmount) <= tolerance);
-
-    const sorted = [...filtered].sort((a, b) => a.date.getTime() - b.date.getTime());
-    const monthlyBuckets = buildMonthlyBuckets(sorted);
-    if (monthlyBuckets.length < resolvedOptions.minOccurrences) {
+  grouped.forEach((groupTransactions, key) => {
+    const sorted = sortByDateAscending(groupTransactions);
+    if (sorted.length < resolved.minOccurrences) {
       return;
     }
 
-    const qualifyingMonthIds = findQualifyingMonthIds(monthlyBuckets, resolvedOptions);
-    if (!qualifyingMonthIds.size) {
+    const filtered = filterByAmountTolerance(sorted);
+    if (filtered.length < resolved.minOccurrences) {
       return;
     }
 
-    const bucketById = new Map<number, MonthlyBucket>();
-    monthlyBuckets.forEach((bucket) => bucketById.set(bucket.monthId, bucket));
+    const spanDays = diffInDays(filtered[0].date, filtered[filtered.length - 1].date);
+    if (spanDays < resolved.minSpanDays || spanDays > resolved.maxSpanDays) {
+      return;
+    }
 
-    const candidateDays = Array.from(qualifyingMonthIds).map((monthId) =>
-      bucketById.get(monthId)!.primary.date.getDate()
-    );
-    const representativeDay = median(candidateDays);
-
-    qualifyingMonthIds.forEach((monthId) => {
-      const bucket = bucketById.get(monthId);
-      if (!bucket) {
-        return;
+    const transactionByMonthId = new Map<number, ParsedTransaction>();
+    filtered.forEach((transaction) => {
+      const monthId = transaction.date.getFullYear() * 12 + transaction.date.getMonth();
+      const previous = transactionByMonthId.get(monthId);
+      if (!previous || transaction.date.getTime() > previous.date.getTime()) {
+        transactionByMonthId.set(monthId, transaction);
       }
+    });
 
-      const representative = selectRepresentativeForMonth(bucket, representativeDay);
-      recurringIds.add(representative.id);
+    const occurrences = Array.from(transactionByMonthId.values()).sort(
+      (first, second) => first.date.getTime() - second.date.getTime()
+    );
+
+    if (occurrences.length < resolved.minOccurrences) {
+      return;
+    }
+
+    const baseCurrency =
+      occurrences[0]?.currencySymbol ?? filtered[0]?.currencySymbol ?? DEFAULT_CURRENCY_SYMBOL;
+
+    series.push({
+      id: buildSeriesId(key, occurrences),
+      key,
+      cadence: "monthly",
+      transactions: occurrences,
+      representative: occurrences[occurrences.length - 1],
+      explanation: buildExplanation(occurrences, baseCurrency),
     });
   });
 
-  return recurringIds;
+  const recurringIds = new Set<string>();
+  series.forEach((entry) => {
+    entry.transactions.forEach((transaction) => {
+      recurringIds.add(transaction.id);
+    });
+  });
+
+  const orphanIds = transactions
+    .filter((transaction) => !recurringIds.has(transaction.id))
+    .map((transaction) => transaction.id);
+
+  return {
+    series,
+    orphanIds,
+  };
 };
 
-export const applyRecurringDetection = (
+export const annotateTransactionsWithRecurrence = (
   transactions: ParsedTransaction[],
-  options: Partial<RecurrenceDetectionOptions> = {}
+  series: RecurringSeries[]
 ): ParsedTransaction[] => {
-  const recurringIds = detectRecurringTransactions(transactions, options);
+  if (!series.length) {
+    return transactions.map((transaction) => ({ ...transaction, isRecurring: false }));
+  }
+
+  const recurringIds = new Set<string>();
+  series.forEach((entry) => {
+    entry.transactions.forEach((transaction) => recurringIds.add(transaction.id));
+  });
+
   return transactions.map((transaction) => ({
     ...transaction,
     isRecurring: recurringIds.has(transaction.id),
   }));
 };
 
-export interface RecurringSeriesSummary {
-  /** Stable identifier derived from the recurrence grouping logic */
-  groupId: string;
-  /** Transaction instance occurring within the requested month */
-  representative: ParsedTransaction;
-  /** All transaction ids belonging to this recurring series */
-  occurrenceIds: string[];
-  /** Total number of detected occurrences for the series */
-  occurrenceCount: number;
-  /** Earliest detected occurrence date */
-  firstOccurrence: Date;
-  /** Most recent detected occurrence date */
-  lastOccurrence: Date;
-}
+export const selectSeriesForMonth = (
+  series: RecurringSeries[],
+  monthDate: Date
+): RecurringSeries[] => {
+  const targetYear = monthDate.getFullYear();
+  const targetMonth = monthDate.getMonth();
 
-const toMonthKey = (date: Date) => `${date.getFullYear()}-${date.getMonth()}`;
-
-export const summarizeRecurringTransactionsForMonth = (
-  transactions: ParsedTransaction[],
-  monthDate: Date,
-  options: Partial<RecurrenceDetectionOptions> = {}
-): RecurringSeriesSummary[] => {
-  if (!transactions.length) {
-    return [];
-  }
-
-  const annotated = applyRecurringDetection(transactions, options);
-  const targetMonthKey = toMonthKey(monthDate);
-
-  const groups = new Map<string, ParsedTransaction[]>();
-
-  annotated.forEach((transaction) => {
-    if (!transaction.isRecurring) {
-      return;
-    }
-    const key = getGroupingKey(transaction);
-    if (!groups.has(key)) {
-      groups.set(key, []);
-    }
-    groups.get(key)!.push(transaction);
-  });
-
-  const summaries: RecurringSeriesSummary[] = [];
-
-  groups.forEach((transactionsInGroup, groupId) => {
-    if (!transactionsInGroup.length) {
-      return;
-    }
-
-    const sorted = [...transactionsInGroup].sort(
-      (first, second) => first.date.getTime() - second.date.getTime()
-    );
-
-    const representative = sorted.find(
-      (transaction) => toMonthKey(transaction.date) === targetMonthKey
-    );
-
-    if (!representative) {
-      return;
-    }
-
-    summaries.push({
-      groupId,
-      representative,
-      occurrenceIds: sorted.map((transaction) => transaction.id),
-      occurrenceCount: sorted.length,
-      firstOccurrence: sorted[0].date,
-      lastOccurrence: sorted[sorted.length - 1].date,
-    });
-  });
-
-  return summaries.sort((first, second) => {
-    const dateDiff =
-      first.representative.date.getTime() - second.representative.date.getTime();
-    if (dateDiff !== 0) {
-      return dateDiff;
-    }
-    const firstLabel = first.representative.description.toLowerCase();
-    const secondLabel = second.representative.description.toLowerCase();
-    if (firstLabel < secondLabel) {
-      return -1;
-    }
-    if (firstLabel > secondLabel) {
-      return 1;
-    }
-    return 0;
-  });
+  return series
+    .map((entry) => {
+      const occurrence = entry.transactions.find(
+        (transaction) =>
+          transaction.date.getFullYear() === targetYear &&
+          transaction.date.getMonth() === targetMonth
+      );
+      if (!occurrence) {
+        return null;
+      }
+      return {
+        ...entry,
+        representative: occurrence,
+      };
+    })
+    .filter((value): value is RecurringSeries => Boolean(value));
 };

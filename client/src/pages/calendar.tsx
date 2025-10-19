@@ -6,13 +6,17 @@ import InsightsSidebar from "@/components/InsightsSidebar";
 import FilterPanel, { type FilterState } from "@/components/FilterPanel";
 import DayDetailPanel from "@/components/DayDetailPanel";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useToast } from "@/hooks/use-toast";
-import { buildRecurringIcs } from "@/lib/icsExport";
-import { detectRecurringTransactions, getGroupingKey } from "@/lib/recurrenceDetection";
-import ExportModal from "@/components/ExportModal";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { Download, Filter } from "lucide-react";
 import RangeSummaryDrawer from "@/components/RangeSummaryDrawer";
@@ -20,17 +24,18 @@ import {
   buildRangeCsv,
   buildRangeSummary,
   filterTransactionsInRange,
-  type DateRange,
 } from "@/lib/rangeSummary";
+import type { DateRange } from "@/types/range";
 
 interface CalendarPageProps {
   transactions: ParsedTransaction[];
+  onRequestExport: (monthDate: Date) => void;
 }
 
 const EXPORT_TOOLTIP =
   "Generates a single-month .ics calendar file with one all-day event for each recurring transaction detected this month. Each event is set up to repeat automatically in your calendar app as needed.";
 
-export default function CalendarPage({ transactions }: CalendarPageProps) {
+export default function CalendarPage({ transactions, onRequestExport }: CalendarPageProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedDayTransactions, setSelectedDayTransactions] = useState<ParsedTransaction[]>([]);
@@ -195,68 +200,8 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
     }
   }, [rangeTransactions, toast]);
 
-  const [isExportModalOpen, setExportModalOpen] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
-
-  const handleExportModalOpen = () => setExportModalOpen(true);
-  const handleExportModalClose = () => setExportModalOpen(false);
-
-  const handleExportRecurring = (selectedIds: string[], monthDate: Date) => {
-    setIsGenerating(true);
-    try {
-      // Group recurring transactions by recurrence group
-      const recurringIds = detectRecurringTransactions(transactions);
-      const recurringGroups = new Map<string, ParsedTransaction[]>();
-      transactions.forEach((tx) => {
-        if (!recurringIds.has(tx.id)) return;
-        const key = getGroupingKey(tx);
-        if (!recurringGroups.has(key)) recurringGroups.set(key, []);
-        recurringGroups.get(key)!.push(tx);
-      });
-      // Sort each group by date
-      recurringGroups.forEach((arr: ParsedTransaction[]) => arr.sort((a: ParsedTransaction, b: ParsedTransaction) => a.date.getTime() - b.date.getTime()));
-      // For each selected id, find its group and take the representative (last occurrence)
-      const representatives = Array.from(recurringGroups.values())
-        .map((group) => group[group.length - 1])
-        .filter((tx) => selectedIds.includes(tx.id));
-
-      const monthLabel = monthDate.toLocaleDateString("en-US", {
-        month: "long",
-        year: "numeric",
-      });
-      const icsContent = buildRecurringIcs(representatives, {
-        monthDate,
-        calendarName: `Recurring Transactions - ${monthLabel}`,
-      });
-      const blob = new Blob([icsContent], {
-        type: "text/calendar;charset=utf-8",
-      });
-      const downloadUrl = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      const fileName = `recurring-transactions-${monthDate.getFullYear()}-${String(
-        monthDate.getMonth() + 1
-      ).padStart(2, "0")}.ics`;
-      link.href = downloadUrl;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      setTimeout(() => URL.revokeObjectURL(downloadUrl), 0);
-      toast({
-        title: "Calendar exported",
-        description: `Recurring transactions for ${monthLabel} saved to ${fileName}.`,
-      });
-    } catch (error) {
-      console.error("Failed to export recurring transactions", error);
-      toast({
-        variant: "destructive",
-        title: "Export failed",
-        description: "Unable to create the calendar file. Please try again.",
-      });
-    } finally {
-      setIsGenerating(false);
-      setExportModalOpen(false);
-    }
+  const handleRequestExport = () => {
+    onRequestExport(currentDate);
   };
 
   const currentMonthName = currentDate.toLocaleDateString("en-US", {
@@ -289,7 +234,7 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={handleExportModalOpen}
+                            onClick={handleRequestExport}
                             data-testid="button-export-ics"
                           >
                             <Download className="w-4 h-4 mr-2" />
@@ -312,6 +257,12 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
                         </Button>
                       </SheetTrigger>
                       <SheetContent side="right" className="w-80">
+                        <SheetHeader>
+                          <SheetTitle className="sr-only">Filters</SheetTitle>
+                          <SheetDescription className="sr-only">
+                            Adjust calendar transactions using filters.
+                          </SheetDescription>
+                        </SheetHeader>
                         <div className="mt-6 space-y-6">
                           <FilterPanel
                             filters={filters}
@@ -357,7 +308,7 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={handleExportModalOpen}
+                              onClick={handleRequestExport}
                               data-testid="button-export-ics"
                             >
                               <Download className="w-4 h-4 mr-2" />
@@ -400,6 +351,12 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
       {selectedDate && !isDesktop && (
         <Sheet open={selectedDate !== null} onOpenChange={(open) => !open && handleClosePanel()}>
           <SheetContent side="right" className="w-full sm:max-w-md p-0">
+            <SheetHeader>
+              <SheetTitle className="sr-only">Day details</SheetTitle>
+              <SheetDescription className="sr-only">
+                Detailed transactions for the selected day.
+              </SheetDescription>
+            </SheetHeader>
             <DayDetailPanel
               date={selectedDate}
               transactions={selectedDayTransactions}
@@ -429,14 +386,6 @@ export default function CalendarPage({ transactions }: CalendarPageProps) {
           />
         </>
       )}
-      <ExportModal
-        transactions={transactions}
-        isOpen={isExportModalOpen}
-        onClose={handleExportModalClose}
-        onExport={handleExportRecurring}
-        isGenerating={isGenerating}
-        monthDate={currentDate}
-      />
       <RangeSummaryDrawer
         open={isRangeDrawerOpen}
         onOpenChange={setRangeDrawerOpen}
