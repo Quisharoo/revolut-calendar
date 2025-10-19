@@ -1,6 +1,13 @@
 import React from "react";
 import type { RecurringSeries } from "@shared/schema";
-import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { DEFAULT_CURRENCY_SYMBOL, formatCurrency } from "@/lib/transactionUtils";
 import { selectSeriesForMonth } from "@/lib/recurrenceDetection";
@@ -100,14 +107,16 @@ export default function ExportModal({
     seriesForMonth.every((entry) => selected.has(entry.id));
 
   return (
-    <Sheet open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <SheetContent className="flex h-full flex-col overflow-hidden">
-        <SheetTitle>Export Recurring Transactions</SheetTitle>
-        <SheetDescription>
-          Select recurring transaction series detected for all data. One event will be
-          generated per series for {monthLabel}.
-        </SheetDescription>
-        <div className="mt-4 flex items-center justify-between gap-2">
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="flex max-h-[85vh] flex-col gap-4 overflow-hidden sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Export Recurring Transactions</DialogTitle>
+          <DialogDescription>
+            Select recurring transaction series detected for all data. One event will be
+            generated per series for {monthLabel}.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex items-center justify-between gap-2">
           <span className="text-sm text-muted-foreground">Exporting for {monthLabel}</span>
           <Button
             variant="ghost"
@@ -118,56 +127,58 @@ export default function ExportModal({
             {allSelected ? "Unselect all" : "Select all"}
           </Button>
         </div>
-        <div className="mt-2 min-h-0 flex-1 overflow-auto pr-1">
+        <div className="min-h-[120px] flex-1 overflow-auto rounded-md border border-border/40 pr-1">
           {seriesForMonth.length === 0 ? (
-            <p className="p-2 text-sm text-muted-foreground">
+            <p className="p-3 text-sm text-muted-foreground">
               No recurring transactions detected for this month.
             </p>
           ) : (
-            seriesForMonth.map((entry) => {
-              const representative = entry.representative;
-              const amountLabel = formatCurrency(
-                representative.amount,
-                representative.currencySymbol ?? DEFAULT_CURRENCY_SYMBOL
-              );
-              return (
-                <label
-                  key={entry.id}
-                  className="flex items-center gap-3 rounded-md p-3 hover:bg-muted"
-                >
-                  <input
-                    aria-label={`select-series-${entry.id}`}
-                    type="checkbox"
-                    checked={selected.has(entry.id)}
-                    onChange={() => toggle(entry.id)}
-                  />
-                  <div className="flex-1">
-                    <div className="flex items-baseline justify-between gap-2">
-                      <span className="font-medium">
-                        {representative.source?.name ?? representative.description}
-                      </span>
-                      <span className="text-sm font-semibold tabular-nums text-muted-foreground">
-                        {amountLabel}
-                      </span>
+            <div className="divide-y">
+              {seriesForMonth.map((entry) => {
+                const representative = entry.representative;
+                const amountLabel = formatCurrency(
+                  representative.amount,
+                  representative.currencySymbol ?? DEFAULT_CURRENCY_SYMBOL
+                );
+                return (
+                  <label
+                    key={entry.id}
+                    className="flex cursor-pointer items-center gap-3 p-3 hover:bg-muted"
+                  >
+                    <input
+                      aria-label={`select-series-${entry.id}`}
+                      type="checkbox"
+                      checked={selected.has(entry.id)}
+                      onChange={() => toggle(entry.id)}
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <span className="font-medium">
+                          {representative.source?.name ?? representative.description}
+                        </span>
+                        <span className="text-sm font-semibold tabular-nums text-muted-foreground">
+                          {amountLabel}
+                        </span>
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {formatMonthRange(entry)}
+                      </div>
                     </div>
-                    <div className="text-xs text-muted-foreground">
-                      {formatMonthRange(entry)}
-                    </div>
-                  </div>
-                </label>
-              );
-            })
+                  </label>
+                );
+              })}
+            </div>
           )}
         </div>
-        <div className="mt-4 flex items-center justify-end gap-2">
+        <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={isGenerating}>
             Cancel
           </Button>
           <Button onClick={handleExport} disabled={isGenerating || selected.size === 0}>
             {isGenerating ? "Generating…" : "Export"}
           </Button>
-        </div>
-      </SheetContent>
-    </Sheet>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
