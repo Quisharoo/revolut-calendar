@@ -17,13 +17,6 @@ const median = (values: number[]): number => {
   return (sorted[middle - 1] + sorted[middle]) / 2;
 };
 
-const formatDateAsDateValue = (date: Date) => {
-  const year = date.getUTCFullYear();
-  const month = ensureTwoDigits(date.getUTCMonth() + 1);
-  const day = ensureTwoDigits(date.getUTCDate());
-  return `${year}${month}${day}`;
-};
-
 const formatDateAsUtcTimestamp = (date: Date) => {
   const year = date.getUTCFullYear();
   const month = ensureTwoDigits(date.getUTCMonth() + 1);
@@ -34,9 +27,19 @@ const formatDateAsUtcTimestamp = (date: Date) => {
   return `${year}${month}${day}T${hours}${minutes}${seconds}Z`;
 };
 
-const addUtcDays = (date: Date, days: number) => {
-  const clone = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
-  clone.setUTCDate(clone.getUTCDate() + days);
+const formatDateAsLocalDateTime = (date: Date) => {
+  const year = ensureTwoDigits(date.getFullYear());
+  const month = ensureTwoDigits(date.getMonth() + 1);
+  const day = ensureTwoDigits(date.getDate());
+  const hours = ensureTwoDigits(date.getHours());
+  const minutes = ensureTwoDigits(date.getMinutes());
+  const seconds = ensureTwoDigits(date.getSeconds());
+  return `${year}${month}${day}T${hours}${minutes}${seconds}`;
+};
+
+const addLocalDays = (date: Date, days: number) => {
+  const clone = new Date(date.getTime());
+  clone.setDate(clone.getDate() + days);
   return clone;
 };
 
@@ -158,8 +161,42 @@ export const buildRecurringIcs = (
       return;
     }
 
-    const start = new Date(Date.UTC(occurrence.date.getFullYear(), occurrence.date.getMonth(), occurrence.date.getDate()));
-    const end = addUtcDays(start, 1);
+    const startUtc = new Date(
+      Date.UTC(
+        occurrence.date.getFullYear(),
+        occurrence.date.getMonth(),
+        occurrence.date.getDate(),
+        0,
+        0,
+        0,
+        0
+      )
+    );
+    const endUtc = new Date(
+      Date.UTC(
+        occurrence.date.getFullYear(),
+        occurrence.date.getMonth(),
+        occurrence.date.getDate() + 1,
+        0,
+        0,
+        0,
+        0
+      )
+    );
+
+    const startLocal = new Date(
+      occurrence.date.getFullYear(),
+      occurrence.date.getMonth(),
+      occurrence.date.getDate(),
+      0,
+      0,
+      0,
+      0
+    );
+    const endLocal = addLocalDays(startLocal, 1);
+
+    const timezoneKey = timezone.trim();
+    const isUtc = timezoneKey.toUpperCase() === "UTC" || timezoneKey.toUpperCase() === "ETC/UTC";
 
     const eventLines = [
       "BEGIN:VEVENT",
@@ -167,8 +204,12 @@ export const buildRecurringIcs = (
       `DTSTAMP:${timestamp}`,
       `SUMMARY:${escapeIcsText(resolveSummary({ ...entry, representative: occurrence }))}`,
       `DESCRIPTION:${escapeIcsText(resolveDescription({ ...entry, representative: occurrence }))}`,
-      `DTSTART;VALUE=DATE:${formatDateAsDateValue(start)}`,
-      `DTEND;VALUE=DATE:${formatDateAsDateValue(end)}`,
+      isUtc
+        ? `DTSTART:${formatDateAsUtcTimestamp(startUtc)}`
+        : `DTSTART;TZID=${escapeIcsText(timezoneKey)}:${formatDateAsLocalDateTime(startLocal)}`,
+      isUtc
+        ? `DTEND:${formatDateAsUtcTimestamp(endUtc)}`
+        : `DTEND;TZID=${escapeIcsText(timezoneKey)}:${formatDateAsLocalDateTime(endLocal)}`,
       `RRULE:${buildMonthlyRule(occurrence.date)}`,
       "END:VEVENT",
     ];

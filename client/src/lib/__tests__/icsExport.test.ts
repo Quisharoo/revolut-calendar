@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { APP_TIMEZONE } from "@shared/constants";
 import type { ParsedTransaction, RecurringSeries } from "@shared/schema";
 import { buildRecurringIcs } from "../icsExport";
 import { getGroupingKey } from "../recurrenceDetection";
@@ -114,6 +115,12 @@ describe("buildRecurringIcs", () => {
     expect(result.icsText).toContain("BEGIN:VCALENDAR");
     expect(result.icsText).toContain("SUMMARY:Rent (-€1\\,800.00)");
     expect(result.icsText).toContain("RRULE:FREQ=MONTHLY;BYMONTHDAY=3");
+    expect(result.icsText).toContain(
+      `DTSTART;TZID=${APP_TIMEZONE}:20240103T000000`
+    );
+    expect(result.icsText).toContain(
+      `DTEND;TZID=${APP_TIMEZONE}:20240104T000000`
+    );
   });
 
   it("reuses a stable UID for the same series across months", () => {
@@ -155,5 +162,23 @@ describe("buildRecurringIcs", () => {
     expect(result.stats.eventCount).toBe(0);
     expect(result.stats.exportedSeriesIds).toHaveLength(0);
     expect(result.stats.skippedSeriesIds).toEqual([series.id]);
+  });
+
+  it("emits UTC timestamps when the timezone override is UTC", () => {
+    const occurrences = [
+      createTransaction({ id: "rent-jan", date: new Date(2024, 0, 3), amount: -1800, description: "Rent" }),
+      createTransaction({ id: "rent-feb", date: new Date(2024, 1, 3), amount: -1800, description: "Rent" }),
+      createTransaction({ id: "rent-mar", date: new Date(2024, 2, 3), amount: -1800, description: "Rent" }),
+    ];
+
+    const series = buildSeriesFixture("rent-series", occurrences);
+
+    const result = buildRecurringIcs([series], {
+      monthDate: new Date(2024, 0, 1),
+      timezone: "UTC",
+    });
+
+    expect(result.icsText).toContain("DTSTART:20240103T000000Z");
+    expect(result.icsText).toContain("DTEND:20240104T000000Z");
   });
 });

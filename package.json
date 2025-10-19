@@ -18,6 +18,8 @@
     "changelog": "git cliff -o changelog.md",
     "changelog:preview": "git cliff --unreleased",
     "knip": "knip",
+    "depcruise": "depcruise --config dependency-cruiser.config.cjs client/src server shared api scripts",
+    "bundlesize": "pnpm dlx bundlesize",
     "install:retry": "./scripts/pnpm-install-retry.sh"
   },
   "dependencies": {

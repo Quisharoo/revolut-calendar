@@ -1,4 +1,5 @@
-import type { ParsedTransaction } from "@shared/schema";
+import { MAX_CSV_ROWS } from "@shared/constants";
+import { transactionSchema, type ParsedTransaction } from "@shared/schema";
 import {
   buildSource,
   detectCurrencySymbol,
@@ -103,6 +104,10 @@ export const parseRevolutCsv = (text: string): ParsedTransaction[] => {
   }
 
   const [headerRow, ...dataRows] = rows;
+
+  if (dataRows.length > MAX_CSV_ROWS) {
+    throw new Error(`CSV exceeds the maximum supported row count of ${MAX_CSV_ROWS}.`);
+  }
   const headers = headerRow.map((cell) => cell.trim());
   const headerMap = new Map<string, number>();
   headers.forEach((header, index) => {
@@ -240,7 +245,7 @@ export const parseRevolutCsv = (text: string): ParsedTransaction[] => {
 
     const currencySymbol = detectCurrencySymbol(currencyRaw, amountRaw);
 
-    transactions.push({
+    const candidate = {
       id: createId(),
       date: parsedDate,
       description,
@@ -250,7 +255,17 @@ export const parseRevolutCsv = (text: string): ParsedTransaction[] => {
       broker: source.type === "broker" ? source.name : undefined,
       source,
       isRecurring: false,
-    });
+    };
+
+    const parsed = transactionSchema.safeParse(candidate);
+    if (!parsed.success) {
+      const issue = parsed.error.issues[0];
+      const reason = issue?.message ?? "Invalid transaction data";
+      const rowNumber = rowIndex + 2; // account for header row
+      throw new Error(`Row ${rowNumber} failed validation: ${reason}`);
+    }
+
+    transactions.push(parsed.data);
   });
 
   return transactions;

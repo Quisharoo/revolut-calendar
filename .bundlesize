@@ -1,0 +1,12 @@
+{
+  "files": [
+    {
+      "path": "dist/public/assets/index-*.js",
+      "maxSize": "400 kB"
+    },
+    {
+      "path": "dist/public/assets/index-*.css",
+      "maxSize": "200 kB"
+    }
+  ]
+}
