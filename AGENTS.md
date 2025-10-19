@@ -43,14 +43,13 @@ Timezone: Europe/Dublin
 │   ├── ics/
 │   └── e2e/                  # Playwright smoke tests
 ├── docs/
-│   ├── AGENTS.md
 │   ├── DEPLOYMENT.md
 │   ├── RECURRENCE-SPEC.md
 │   └── ICS-EXAMPLES/
 ├── scripts/
-│   ├── build.ts
-│   ├── changelog.ts
-│   └── metrics.ts
+│   ├── check_recurring.ts   # Manual recurrence exploration CLI
+│   └── pnpm-install-retry.sh # Resilient installer wrapper for CI
+├── AGENTS.md                # This guide (kept at repo root for easy discovery)
 ├── public/
 │   └── favicon.svg
 ├── vitest.config.ts
@@ -63,6 +62,7 @@ Timezone: Europe/Dublin
 - Business logic in `client/src/lib/` or `shared/`. Never inline heavy logic in components.
 - Heavy compute (parse, recurrence, export) runs in `client/src/workers/`.
 - Server and API import only from `shared/`, never from `client/`.
+- Keep `public/` versioned with required assets (`favicon.svg` minimum). Express serves the built client from `dist/public`.
 
 ---
 
@@ -124,8 +124,9 @@ Timezone: Europe/Dublin
 ## CI & Quality Gates
 - `pnpm test --coverage` with ≥80% line coverage for CSV, recurrence, ICS.
 - `pnpm typecheck` must pass.
-- `pnpm knip` clean. `pnpm depcruise` no cycles.
-- Bundle budget enforced via `.bundlesize`.
+- `pnpm knip` clean — configure via `knip.json` at repo root (add when enabling).
+- `pnpm depcruise` no cycles — use `dependency-cruiser.config.cjs` in the root.
+- Bundle budget enforced via `.bundlesize` placed at repo root.
 - A11y checks: labels, focus order, keyboard reachability.
 
 ---
