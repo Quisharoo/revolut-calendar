@@ -1,8 +1,8 @@
 {
   "worktreeCopyPatterns": [".env*", ".vscode/**"],
-  "worktreeCopyIgnores": ["**/node_modules/**", "**/dist/**", "**/.git/**"],
+  "worktreeCopyIgnores": ["**/node_modules/**", "**/dist/**", "**/.git/**", "**/.pnpm-store/**"],
   "worktreePathTemplate": "$BASE_PATH-$BRANCH_NAME",
-  "postCreateCmd": ["npm install", "npm run db:push"],
+  "postCreateCmd": ["pnpm install --frozen-lockfile", "pnpm db:push"],
   "terminalCommand": "code .",
   "deleteBranchWithWorktree": true
 }
