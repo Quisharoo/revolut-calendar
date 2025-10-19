@@ -27,23 +27,53 @@ const formatDateAsUtcTimestamp = (date: Date) => {
   return `${year}${month}${day}T${hours}${minutes}${seconds}Z`;
 };
 
-const formatDateAsLocalDateTime = (date: Date) => {
-  const year = ensureTwoDigits(date.getFullYear());
-  const month = ensureTwoDigits(date.getMonth() + 1);
-  const day = ensureTwoDigits(date.getDate());
-  const hours = ensureTwoDigits(date.getHours());
-  const minutes = ensureTwoDigits(date.getMinutes());
-  const seconds = ensureTwoDigits(date.getSeconds());
-  return `${year}${month}${day}T${hours}${minutes}${seconds}`;
+const timezoneDateFormatterCache = new Map<string, Intl.DateTimeFormat>();
+
+const getTimezoneDateFormatter = (timezone: string) => {
+  const key = timezone.trim();
+  let formatter = timezoneDateFormatterCache.get(key);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat("en-CA", {
+      timeZone: key,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+    timezoneDateFormatterCache.set(key, formatter);
+  }
+  return formatter;
 };
 
-const addLocalDays = (date: Date, days: number) => {
-  const clone = new Date(date.getTime());
-  clone.setDate(clone.getDate() + days);
-  return clone;
+const extractDatePartsForTimezone = (date: Date, timezone: string) => {
+  const formatter = getTimezoneDateFormatter(timezone);
+  const parts = formatter.formatToParts(date);
+  const pick = (type: "year" | "month" | "day") =>
+    parts.find((part) => part.type === type)?.value ?? "00";
+
+  return {
+    year: pick("year"),
+    month: pick("month"),
+    day: pick("day"),
+  };
 };
 
-const buildMonthlyRule = (date: Date) => `FREQ=MONTHLY;BYMONTHDAY=${date.getDate()}`;
+const addPlainDays = (
+  parts: ReturnType<typeof extractDatePartsForTimezone>,
+  days: number
+) => {
+  const base = new Date(Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day)));
+  base.setUTCDate(base.getUTCDate() + days);
+  return {
+    year: ensureTwoDigits(base.getUTCFullYear()),
+    month: ensureTwoDigits(base.getUTCMonth() + 1),
+    day: ensureTwoDigits(base.getUTCDate()),
+  };
+};
+
+const buildMonthlyRule = (date: Date, timezone: string) => {
+  const { day } = extractDatePartsForTimezone(date, timezone);
+  return `FREQ=MONTHLY;BYMONTHDAY=${Number(day)}`;
+};
 
 const normalizeForSlug = (value: string) =>
   value
@@ -137,6 +167,7 @@ export const buildRecurringIcs = (
   }: BuildRecurringIcsOptions
 ): BuildRecurringIcsResult => {
   const timestamp = formatDateAsUtcTimestamp(new Date());
+  const timezoneKey = timezone.trim();
 
   const filteredSeries = Array.isArray(selectedSeriesIds)
     ? series.filter((entry) => selectedSeriesIds.includes(entry.id))
@@ -148,7 +179,7 @@ export const buildRecurringIcs = (
     "CALSCALE:GREGORIAN",
     `PRODID:${ICS_CALENDAR_PROD_ID}`,
     `X-WR-CALNAME:${escapeIcsText(calendarName)}`,
-    `X-WR-TIMEZONE:${escapeIcsText(timezone)}`,
+    `X-WR-TIMEZONE:${escapeIcsText(timezoneKey)}`,
   ];
 
   const exportedSeriesIds: string[] = [];
@@ -161,42 +192,24 @@ export const buildRecurringIcs = (
       return;
     }
 
-    const startUtc = new Date(
-      Date.UTC(
-        occurrence.date.getFullYear(),
-        occurrence.date.getMonth(),
-        occurrence.date.getDate(),
-        0,
-        0,
-        0,
-        0
-      )
-    );
-    const endUtc = new Date(
-      Date.UTC(
-        occurrence.date.getFullYear(),
-        occurrence.date.getMonth(),
-        occurrence.date.getDate() + 1,
-        0,
-        0,
-        0,
-        0
-      )
-    );
+    const localYear = occurrence.date.getFullYear();
+    const localMonth = occurrence.date.getMonth();
+    const localDay = occurrence.date.getDate();
 
-    const startLocal = new Date(
-      occurrence.date.getFullYear(),
-      occurrence.date.getMonth(),
-      occurrence.date.getDate(),
-      0,
-      0,
-      0,
-      0
-    );
-    const endLocal = addLocalDays(startLocal, 1);
+    const startUtc = new Date(Date.UTC(localYear, localMonth, localDay, 0, 0, 0, 0));
+    const endUtc = new Date(Date.UTC(localYear, localMonth, localDay + 1, 0, 0, 0, 0));
 
-    const timezoneKey = timezone.trim();
     const isUtc = timezoneKey.toUpperCase() === "UTC" || timezoneKey.toUpperCase() === "ETC/UTC";
+
+    let startMidnightLocal: string | undefined;
+    let endMidnightLocal: string | undefined;
+
+    if (!isUtc) {
+      const startDateParts = extractDatePartsForTimezone(startUtc, timezoneKey);
+      startMidnightLocal = `${startDateParts.year}${startDateParts.month}${startDateParts.day}T000000`;
+      const endDateParts = addPlainDays(startDateParts, 1);
+      endMidnightLocal = `${endDateParts.year}${endDateParts.month}${endDateParts.day}T000000`;
+    }
 
     const eventLines = [
       "BEGIN:VEVENT",
@@ -206,11 +219,11 @@ export const buildRecurringIcs = (
       `DESCRIPTION:${escapeIcsText(resolveDescription({ ...entry, representative: occurrence }))}`,
       isUtc
         ? `DTSTART:${formatDateAsUtcTimestamp(startUtc)}`
-        : `DTSTART;TZID=${escapeIcsText(timezoneKey)}:${formatDateAsLocalDateTime(startLocal)}`,
+        : `DTSTART;TZID=${escapeIcsText(timezoneKey)}:${startMidnightLocal!}`,
       isUtc
         ? `DTEND:${formatDateAsUtcTimestamp(endUtc)}`
-        : `DTEND;TZID=${escapeIcsText(timezoneKey)}:${formatDateAsLocalDateTime(endLocal)}`,
-      `RRULE:${buildMonthlyRule(occurrence.date)}`,
+        : `DTEND;TZID=${escapeIcsText(timezoneKey)}:${endMidnightLocal!}`,
+      `RRULE:${buildMonthlyRule(startUtc, timezoneKey)}`,
       "END:VEVENT",
     ];
 

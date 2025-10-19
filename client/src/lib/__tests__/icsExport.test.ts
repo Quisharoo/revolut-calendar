@@ -123,6 +123,47 @@ describe("buildRecurringIcs", () => {
     );
   });
 
+  it("formats DTSTART/DTEND using the provided timezone", () => {
+    const occurrences = [
+      createTransaction({
+        id: "rent-jan",
+        date: new Date("2024-01-03T00:00:00Z"),
+        amount: -1800,
+        description: "Rent",
+        currencySymbol: "€",
+      }),
+      createTransaction({
+        id: "rent-feb",
+        date: new Date("2024-02-03T00:00:00Z"),
+        amount: -1800,
+        description: "Rent",
+        currencySymbol: "€",
+      }),
+      createTransaction({
+        id: "rent-mar",
+        date: new Date("2024-03-03T00:00:00Z"),
+        amount: -1800,
+        description: "Rent",
+        currencySymbol: "€",
+      }),
+    ];
+
+    const series = buildSeriesFixture("rent-series", occurrences);
+
+    const result = buildRecurringIcs([series], {
+      monthDate: new Date(2024, 0, 1),
+      timezone: "America/Los_Angeles",
+    });
+
+    expect(result.icsText).toContain(
+      "DTSTART;TZID=America/Los_Angeles:20240102T000000"
+    );
+    expect(result.icsText).toContain(
+      "DTEND;TZID=America/Los_Angeles:20240103T000000"
+    );
+    expect(result.icsText).toContain("RRULE:FREQ=MONTHLY;BYMONTHDAY=2");
+  });
+
   it("reuses a stable UID for the same series across months", () => {
     const occurrences = [
       createTransaction({ id: "salary-jan", date: new Date(2024, 0, 25), amount: 2500, category: "Income", description: "Salary" }),

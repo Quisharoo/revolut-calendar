@@ -5,6 +5,7 @@ import CalendarGrid from "@/components/CalendarGrid";
 import InsightsSidebar from "@/components/InsightsSidebar";
 import FilterPanel, { type FilterState } from "@/components/FilterPanel";
 import DayDetailPanel from "@/components/DayDetailPanel";
+import { CalendarExportButton } from "@/components/CalendarExportButton";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -17,8 +18,8 @@ import {
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useToast } from "@/hooks/use-toast";
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
-import { Download, Filter } from "lucide-react";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { Filter } from "lucide-react";
 import RangeSummaryDrawer from "@/components/RangeSummaryDrawer";
 import {
   buildRangeCsv,
@@ -228,24 +229,10 @@ export default function CalendarPage({ transactions, onRequestExport }: Calendar
                     />
                   </div>
                   <div className="flex items-center gap-2">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="inline-flex">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleRequestExport}
-                            data-testid="button-export-ics"
-                          >
-                            <Download className="w-4 h-4 mr-2" />
-                            Export
-                          </Button>
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom" align="end">
-                        {EXPORT_TOOLTIP}
-                      </TooltipContent>
-                    </Tooltip>
+                    <CalendarExportButton
+                      onClick={handleRequestExport}
+                      tooltip={EXPORT_TOOLTIP}
+                    />
                     <Sheet>
                       <SheetTrigger asChild>
                         <Button
@@ -302,24 +289,10 @@ export default function CalendarPage({ transactions, onRequestExport }: Calendar
                           onToday={handleToday}
                         />
                       </div>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="inline-flex">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={handleRequestExport}
-                              data-testid="button-export-ics"
-                            >
-                              <Download className="w-4 h-4 mr-2" />
-                              Export
-                            </Button>
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent side="bottom" align="end">
-                          {EXPORT_TOOLTIP}
-                        </TooltipContent>
-                      </Tooltip>
+                      <CalendarExportButton
+                        onClick={handleRequestExport}
+                        tooltip={EXPORT_TOOLTIP}
+                      />
                     </div>
                     <CalendarGrid
                       currentDate={currentDate}
